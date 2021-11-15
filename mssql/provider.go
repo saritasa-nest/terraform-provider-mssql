@@ -35,6 +35,12 @@ func Provider() *schema.Provider {
 				DefaultFunc: schema.EnvDefaultFunc("MSSQL_PASSWORD", nil),
 			},
 
+			"database": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("MSSQL_DATABASE", nil),
+			},
+
 			"max_conn_lifetime_sec": {
 				Type:     schema.TypeInt,
 				Optional: true,
@@ -69,6 +75,7 @@ func Provider() *schema.Provider {
 }
 
 func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
+
 	var endpoint = d.Get("endpoint").(string)
 
 	client := MsSqlClient{
@@ -76,6 +83,7 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 		Port:     d.Get("port").(int),
 		Username: d.Get("username").(string),
 		Password: d.Get("password").(string),
+		Database: d.Get("database").(string),
 	}
 
 	return client, diag.Diagnostics{}

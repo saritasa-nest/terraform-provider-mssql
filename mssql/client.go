@@ -12,18 +12,19 @@ type MsSqlClient struct {
 	Port     int
 	Username string
 	Password string
+	Database string
 	db       *sql.DB
 }
 
-func GetDbConn(c *MsSqlClient) (*sql.DB, error) {
-	if c.db == nil {
-		db, err := ConnectToMySQL(c)
+func GetDbConn(client *MsSqlClient) (*sql.DB, error) {
+	if client.db == nil {
+		db, err := ConnectToMySQL(client)
 		if err != nil {
 			return nil, err
 		}
-		c.db = db
+		client.db = db
 	}
-	return c.db, nil
+	return client.db, nil
 }
 
 func ConnectToMySQL(conf *MsSqlClient) (*sql.DB, error) {
