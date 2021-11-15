@@ -1,17 +1,17 @@
 ---
-layout: "mysql"
-page_title: "MySQL: mysql_database"
-sidebar_current: "docs-mysql-resource-database"
+layout: "mssql"
+page_title: "MS SQL: mssql_database"
+sidebar_current: "docs-mssql-resource-database"
 description: |-
-  Creates and manages a database on a MySQL server.
+  Creates and manages a database on a MS SQL server.
 ---
 
-# mysql\_database
+# mssql\_database
 
-The ``mysql_database`` resource creates and manages a database on a MySQL
+The ``mssql_database`` resource creates and manages a database on a MS SQL
 server.
 
-~> **Caution:** The ``mysql_database`` resource can completely delete your
+~> **Caution:** The ``mssql_database`` resource can completely delete your
 database just as easily as it can create it. To avoid costly accidents,
 consider setting
 [``prevent_destroy``](/docs/configuration/resources.html#prevent_destroy)
@@ -20,7 +20,7 @@ on your database resources as an extra safety measure.
 ## Example Usage
 
 ```hcl
-resource "mysql_database" "app" {
+resource "mssql_database" "app" {
   name = "my_awesome_app"
 }
 ```
@@ -30,8 +30,8 @@ resource "mysql_database" "app" {
 The following arguments are supported:
 
 * `name` - (Required) The name of the database. This must be unique within
-  a given MySQL server and may or may not be case-sensitive depending on
-  the operating system on which the MySQL server is running.
+  a given MS SQL server and may or may not be case-sensitive depending on
+  the operating system on which the MS SQL server is running.
 
 * `default_character_set` - (Optional) The default character set to use when
   a table is created without specifying an explicit character set. Defaults
@@ -39,11 +39,11 @@ The following arguments are supported:
 
 * `default_collation` - (Optional) The default collation to use when a table
   is created without specifying an explicit collation. Defaults to
-  ``utf8_general_ci``. Each character set has its own set of collations, so
+  ``Latin1_General_100_CI_AI``. Each character set has its own set of collations, so
   changing the character set requires also changing the collation.
 
 Note that the defaults for character set and collation above do not respect
-any defaults set on the MySQL server, so that the configuration can be set
+any defaults set on the MS SQL server, so that the configuration can be set
 appropriately even though Terraform cannot see the server-level defaults. If
 you wish to use the server's defaults you must consult the server's
 configuration and then set the ``default_character_set`` and
@@ -63,5 +63,5 @@ The following attributes are exported:
 Databases can be imported using their name, e.g.
 
 ```
-$ terraform import mysql_database.example my-example-database
+$ terraform import mssql_database.example my-example-database
 ```
