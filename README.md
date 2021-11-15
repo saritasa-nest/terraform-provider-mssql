@@ -12,15 +12,15 @@ Usage
 terraform {
   required_providers {
     mysql = {
-      source  = "winebarrel/mysql"
-      version = "~> 1.10.2"
+      source  = "saritasa/mssql"
+      version = "~> 0.1.0"
     }
   }
   required_version = ">= 0.13"
 }
 
-provider "mysql" {
+provider "mssql" {
   endpoint = "localhost"
-  username = "root"
+  username = "admin"
 }
 ```
