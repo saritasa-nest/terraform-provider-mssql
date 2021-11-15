@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-func resourceRole() *schema.Resource {
+func ResourceRole() *schema.Resource {
 	return &schema.Resource{
 		Create: CreateRole,
 		Read:   ReadRole,
@@ -24,7 +24,7 @@ func resourceRole() *schema.Resource {
 }
 
 func CreateRole(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
 		return err
 	}
@@ -45,7 +45,7 @@ func CreateRole(d *schema.ResourceData, meta interface{}) error {
 }
 
 func ReadRole(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func ReadRole(d *schema.ResourceData, meta interface{}) error {
 }
 
 func DeleteRole(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
 		return err
 	}

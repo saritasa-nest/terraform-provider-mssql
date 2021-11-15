@@ -11,7 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-func resourceUser() *schema.Resource {
+func ResourceUser() *schema.Resource {
 	return &schema.Resource{
 		Create: CreateUser,
 		Update: UpdateUser,
@@ -39,7 +39,7 @@ func resourceUser() *schema.Resource {
 				Type:      schema.TypeString,
 				Optional:  true,
 				Sensitive: true,
-				StateFunc: hashSum,
+				StateFunc: HashSum,
 			},
 
 			"password": {
@@ -48,13 +48,6 @@ func resourceUser() *schema.Resource {
 				ConflictsWith: []string{"plaintext_password"},
 				Sensitive:     true,
 				Deprecated:    "Please use plaintext_password instead",
-			},
-
-			"auth_plugin": {
-				Type:          schema.TypeString,
-				Optional:      true,
-				ForceNew:      true,
-				ConflictsWith: []string{"plaintext_password", "password"},
 			},
 
 			"tls_option": {
@@ -68,7 +61,7 @@ func resourceUser() *schema.Resource {
 }
 
 func CreateUser(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
 		return err
 	}
@@ -110,7 +103,7 @@ func CreateUser(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	requiredVersion, _ := version.NewVersion("5.7.0")
-	currentVersion, err := serverVersion(db)
+	currentVersion, err := ServerVersion(db)
 	if err != nil {
 		return err
 	}
@@ -132,7 +125,7 @@ func CreateUser(d *schema.ResourceData, meta interface{}) error {
 }
 
 func UpdateUser(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
 		return err
 	}
@@ -160,7 +153,7 @@ func UpdateUser(d *schema.ResourceData, meta interface{}) error {
 		var stmtSQL string
 
 		/* ALTER USER syntax introduced in MySQL 5.7.6 deprecates SET PASSWORD (GH-8230) */
-		serverVersion, err := serverVersion(db)
+		serverVersion, err := ServerVersion(db)
 		if err != nil {
 			return fmt.Errorf("Could not determine server version: %s", err)
 		}
@@ -186,7 +179,7 @@ func UpdateUser(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	requiredVersion, _ := version.NewVersion("5.7.0")
-	currentVersion, err := serverVersion(db)
+	currentVersion, err := ServerVersion(db)
 	if err != nil {
 		return err
 	}
@@ -210,7 +203,7 @@ func UpdateUser(d *schema.ResourceData, meta interface{}) error {
 }
 
 func ReadUser(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
 		return err
 	}
@@ -233,7 +226,7 @@ func ReadUser(d *schema.ResourceData, meta interface{}) error {
 }
 
 func DeleteUser(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
 		return err
 	}
@@ -261,7 +254,7 @@ func ImportUser(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceDat
 	user := d.Id()[0:lastSeparatorIndex]
 	host := d.Id()[lastSeparatorIndex+1:]
 
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
 		return nil, err
 	}

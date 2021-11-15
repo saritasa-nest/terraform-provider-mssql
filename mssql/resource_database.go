@@ -1,8 +1,10 @@
 package mssql
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"log"
 	"strings"
 
@@ -15,12 +17,12 @@ const defaultCharacterSetKeyword = "CHARACTER SET "
 const defaultCollateKeyword = "COLLATE "
 const unknownDatabaseErrCode = 1049
 
-func resourceDatabase() *schema.Resource {
+func ResourceDatabase() *schema.Resource {
 	return &schema.Resource{
-		Create: CreateDatabase,
-		Update: UpdateDatabase,
-		Read:   ReadDatabase,
-		Delete: DeleteDatabase,
+		CreateContext: CreateDatabase,
+		Update:        UpdateDatabase,
+		Read:          ReadDatabase,
+		Delete:        DeleteDatabase,
 		Importer: &schema.ResourceImporter{
 			State: ImportDatabase,
 		},
@@ -46,10 +48,10 @@ func resourceDatabase() *schema.Resource {
 	}
 }
 
-func CreateDatabase(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+func CreateDatabase(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	stmtSQL := databaseConfigSQL("CREATE", d)
@@ -57,16 +59,16 @@ func CreateDatabase(d *schema.ResourceData, meta interface{}) error {
 
 	_, err = db.Exec(stmtSQL)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	d.SetId(d.Get("name").(string))
 
-	return ReadDatabase(d, meta)
+	return diag.Diagnostics{}
 }
 
 func UpdateDatabase(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
 		return err
 	}
@@ -83,7 +85,7 @@ func UpdateDatabase(d *schema.ResourceData, meta interface{}) error {
 }
 
 func ReadDatabase(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
 		return err
 	}
@@ -94,7 +96,7 @@ func ReadDatabase(d *schema.ResourceData, meta interface{}) error {
 	// compatible in future releases.
 
 	name := d.Id()
-	stmtSQL := "SHOW CREATE DATABASE " + quoteIdentifier(name)
+	stmtSQL := "SHOW CREATE DATABASE " + QuoteIdentifier(name)
 
 	log.Println("Executing statement:", stmtSQL)
 	var createSQL, _database string
@@ -120,12 +122,12 @@ func ReadDatabase(d *schema.ResourceData, meta interface{}) error {
 		var empty interface{}
 
 		requiredVersion, _ := version.NewVersion("8.0.0")
-		currentVersion, err := serverVersion(db)
+		currentVersion, err := ServerVersion(db)
 		if err != nil {
 			return err
 		}
 
-		serverVersionString, err := serverVersionString(db)
+		serverVersionString, err := ServerVersionString(db)
 		if err != nil {
 			return err
 		}
@@ -155,13 +157,13 @@ func ReadDatabase(d *schema.ResourceData, meta interface{}) error {
 }
 
 func DeleteDatabase(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
 		return err
 	}
 
 	name := d.Id()
-	stmtSQL := "DROP DATABASE " + quoteIdentifier(name)
+	stmtSQL := "DROP DATABASE " + QuoteIdentifier(name)
 	log.Println("Executing statement:", stmtSQL)
 
 	_, err = db.Exec(stmtSQL)
@@ -180,16 +182,16 @@ func databaseConfigSQL(verb string, d *schema.ResourceData) string {
 	var defaultCollationClause string
 
 	if defaultCharset != "" {
-		defaultCharsetClause = defaultCharacterSetKeyword + quoteIdentifier(defaultCharset)
+		defaultCharsetClause = defaultCharacterSetKeyword + QuoteIdentifier(defaultCharset)
 	}
 	if defaultCollation != "" {
-		defaultCollationClause = defaultCollateKeyword + quoteIdentifier(defaultCollation)
+		defaultCollationClause = defaultCollateKeyword + QuoteIdentifier(defaultCollation)
 	}
 
 	return fmt.Sprintf(
 		"%s DATABASE %s %s %s",
 		verb,
-		quoteIdentifier(name),
+		QuoteIdentifier(name),
 		defaultCharsetClause,
 		defaultCollationClause,
 	)

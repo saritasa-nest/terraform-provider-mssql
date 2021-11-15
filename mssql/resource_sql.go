@@ -6,7 +6,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-func resourceSql() *schema.Resource {
+func ResourceSql() *schema.Resource {
 	return &schema.Resource{
 		Create: CreateSql,
 		Read:   ReadSql,
@@ -33,7 +33,7 @@ func resourceSql() *schema.Resource {
 }
 
 func CreateSql(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func ReadSql(d *schema.ResourceData, meta interface{}) error {
 }
 
 func DeleteSql(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
 		return err
 	}

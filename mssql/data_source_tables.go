@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-func dataSourceTables() *schema.Resource {
+func DataSourceTables() *schema.Resource {
 	return &schema.Resource{
 		Read: ShowTables,
 		Schema: map[string]*schema.Schema{
@@ -30,7 +30,7 @@ func dataSourceTables() *schema.Resource {
 }
 
 func ShowTables(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
 		return err
 	}
@@ -38,7 +38,7 @@ func ShowTables(d *schema.ResourceData, meta interface{}) error {
 	database := d.Get("database").(string)
 	pattern := d.Get("pattern").(string)
 
-	stmtSQL := fmt.Sprintf("SHOW TABLES FROM %s", quoteIdentifier(database))
+	stmtSQL := fmt.Sprintf("SHOW TABLES FROM %s", QuoteIdentifier(database))
 
 	if pattern != "" {
 		stmtSQL += fmt.Sprintf(" LIKE '%s'", pattern)

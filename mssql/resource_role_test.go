@@ -11,19 +11,18 @@ import (
 )
 
 func TestAccRole_basic(t *testing.T) {
-	roleName := "tf-test-role"
-	resourceName := "mysql_role.test"
+	roleName := "tf-test_util-role"
+	resourceName := "mysql_role.test_util"
 
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
-			testAccPreCheck(t)
-			db, err := connectToMySQL(testAccProvider.Meta().(*MySQLConfiguration))
+			db, err := ConnectToMySQL(TestAccProvider.Meta().(*MsSqlClient))
 			if err != nil {
 				return
 			}
 
 			requiredVersion, _ := version.NewVersion("8.0.0")
-			currentVersion, err := serverVersion(db)
+			currentVersion, err := ServerVersion(db)
 			if err != nil {
 				return
 			}
@@ -32,8 +31,8 @@ func TestAccRole_basic(t *testing.T) {
 				t.Skip("Roles require MySQL 8+")
 			}
 		},
-		Providers:    testAccProviders,
-		CheckDestroy: testAccRoleCheckDestroy(roleName),
+		ProviderFactories: TestProviderFactories,
+		CheckDestroy:      testAccRoleCheckDestroy(roleName),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccRoleConfig_basic(roleName),
@@ -48,7 +47,7 @@ func TestAccRole_basic(t *testing.T) {
 
 func testAccRoleExists(roleName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		db, err := connectToMySQL(testAccProvider.Meta().(*MySQLConfiguration))
+		db, err := ConnectToMySQL(TestAccProvider.Meta().(*MsSqlClient))
 		if err != nil {
 			return err
 		}
@@ -85,7 +84,7 @@ func testAccGetRoleGrantCount(roleName string, db *sql.DB) (int, error) {
 
 func testAccRoleCheckDestroy(roleName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		db, err := connectToMySQL(testAccProvider.Meta().(*MySQLConfiguration))
+		db, err := ConnectToMySQL(TestAccProvider.Meta().(*MsSqlClient))
 		if err != nil {
 			return err
 		}
@@ -101,7 +100,7 @@ func testAccRoleCheckDestroy(roleName string) resource.TestCheckFunc {
 
 func testAccRoleConfig_basic(roleName string) string {
 	return fmt.Sprintf(`
-resource "mysql_role" "test" {
+resource "mysql_role" "test_util" {
   name = "%s"
 }
 `, roleName)

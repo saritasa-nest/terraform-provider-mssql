@@ -15,31 +15,31 @@ import (
 )
 
 func TestAccGrant(t *testing.T) {
-	dbName := fmt.Sprintf("tf-test-%d", rand.Intn(100))
+	dbName := fmt.Sprintf("tf-test_util-%d", rand.Intn(100))
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccGrantCheckDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: TestProviderFactories,
+		CheckDestroy:      testAccGrantCheckDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccGrantConfig_basic(dbName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccPrivilegeExists("mysql_grant.test", "SELECT"),
-					resource.TestCheckResourceAttr("mysql_grant.test", "user", fmt.Sprintf("jdoe-%s", dbName)),
-					resource.TestCheckResourceAttr("mysql_grant.test", "host", "example.com"),
-					resource.TestCheckResourceAttr("mysql_grant.test", "database", dbName),
-					resource.TestCheckResourceAttr("mysql_grant.test", "table", "*"),
-					resource.TestCheckResourceAttr("mysql_grant.test", "tls_option", "NONE"),
+					testAccPrivilegeExists("mysql_grant.test_util", "SELECT"),
+					resource.TestCheckResourceAttr("mysql_grant.test_util", "user", fmt.Sprintf("jdoe-%s", dbName)),
+					resource.TestCheckResourceAttr("mysql_grant.test_util", "host", "example.com"),
+					resource.TestCheckResourceAttr("mysql_grant.test_util", "database", dbName),
+					resource.TestCheckResourceAttr("mysql_grant.test_util", "table", "*"),
+					resource.TestCheckResourceAttr("mysql_grant.test_util", "tls_option", "NONE"),
 				),
 			},
 			{
 				Config: testAccGrantConfig_ssl(dbName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccPrivilegeExists("mysql_grant.test", "SELECT"),
-					resource.TestCheckResourceAttr("mysql_grant.test", "user", fmt.Sprintf("jdoe-%s", dbName)),
-					resource.TestCheckResourceAttr("mysql_grant.test", "host", "example.com"),
-					resource.TestCheckResourceAttr("mysql_grant.test", "database", dbName),
-					resource.TestCheckResourceAttr("mysql_grant.test", "tls_option", "SSL"),
+					testAccPrivilegeExists("mysql_grant.test_util", "SELECT"),
+					resource.TestCheckResourceAttr("mysql_grant.test_util", "user", fmt.Sprintf("jdoe-%s", dbName)),
+					resource.TestCheckResourceAttr("mysql_grant.test_util", "host", "example.com"),
+					resource.TestCheckResourceAttr("mysql_grant.test_util", "database", dbName),
+					resource.TestCheckResourceAttr("mysql_grant.test_util", "tls_option", "SSL"),
 				),
 			},
 		},
@@ -48,8 +48,8 @@ func TestAccGrant(t *testing.T) {
 
 func TestAccGrant_grantOption(t *testing.T) {
 	randInt := rand.Intn(100)
-	db1 := fmt.Sprintf("tf-test-%d", randInt)
-	db2 := fmt.Sprintf("tf-test-%d", randInt+1)
+	db1 := fmt.Sprintf("tf-test_util-%d", randInt)
+	db2 := fmt.Sprintf("tf-test_util-%d", randInt+1)
 
 	config := fmt.Sprintf(`
 resource "mysql_database" "db1" {
@@ -60,21 +60,21 @@ resource "mysql_database" "db2" {
   name = "%s"
 }
 
-resource "mysql_user" "test" {
+resource "mysql_user" "test_util" {
   user     = "jdoe-%d"
   host     = "example.com"
 }
 
 resource "mysql_grant" "test_db1" {
-  user       = mysql_user.test.user
-  host       = mysql_user.test.host
+  user       = mysql_user.test_util.user
+  host       = mysql_user.test_util.host
   database   = mysql_database.db1.name
   privileges = ["SELECT"]
 }
 
 resource "mysql_grant" "test_db2" {
-  user       = mysql_user.test.user
-  host       = mysql_user.test.host
+  user       = mysql_user.test_util.user
+  host       = mysql_user.test_util.host
   database   = mysql_database.db2.name
   privileges = ["SELECT"]
   grant = true
@@ -82,9 +82,9 @@ resource "mysql_grant" "test_db2" {
 `, db1, db2, randInt)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccGrantCheckDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: TestProviderFactories,
+		CheckDestroy:      testAccGrantCheckDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: config,
@@ -109,18 +109,18 @@ resource "mysql_grant" "test_db2" {
 
 func TestAccGrant_role(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
-	dbName := fmt.Sprintf("tf-test-%d", rand.Intn(100))
+	dbName := fmt.Sprintf("tf-test_util-%d", rand.Intn(100))
 	roleName := fmt.Sprintf("TFRole%d", rand.Intn(100))
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
 			testAccPreCheck(t)
-			db, err := connectToMySQL(testAccProvider.Meta().(*MySQLConfiguration))
+			db, err := ConnectToMySQL(TestAccProvider.Meta().(*MsSqlClient))
 			if err != nil {
 				return
 			}
 
 			requiredVersion, _ := version.NewVersion("8.0.0")
-			currentVersion, err := serverVersion(db)
+			currentVersion, err := ServerVersion(db)
 			if err != nil {
 				return
 			}
@@ -129,13 +129,13 @@ func TestAccGrant_role(t *testing.T) {
 				t.Skip("Roles require MySQL 8+")
 			}
 		},
-		Providers:    testAccProviders,
-		CheckDestroy: testAccGrantCheckDestroy,
+		ProviderFactories: TestProviderFactories,
+		CheckDestroy:      testAccGrantCheckDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccGrantConfig_role(dbName, roleName),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("mysql_grant.test", "role", roleName),
+					resource.TestCheckResourceAttr("mysql_grant.test_util", "role", roleName),
 				),
 			},
 		},
@@ -144,18 +144,18 @@ func TestAccGrant_role(t *testing.T) {
 
 func TestAccGrant_roleToUser(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
-	dbName := fmt.Sprintf("tf-test-%d", rand.Intn(100))
+	dbName := fmt.Sprintf("tf-test_util-%d", rand.Intn(100))
 	roleName := fmt.Sprintf("TFRole%d", rand.Intn(100))
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
 			testAccPreCheck(t)
-			db, err := connectToMySQL(testAccProvider.Meta().(*MySQLConfiguration))
+			db, err := ConnectToMySQL(TestAccProvider.Meta().(*MsSqlClient))
 			if err != nil {
 				return
 			}
 
 			requiredVersion, _ := version.NewVersion("8.0.0")
-			currentVersion, err := serverVersion(db)
+			currentVersion, err := ServerVersion(db)
 			if err != nil {
 				return
 			}
@@ -164,15 +164,15 @@ func TestAccGrant_roleToUser(t *testing.T) {
 				t.Skip("Roles require MySQL 8+")
 			}
 		},
-		Providers:    testAccProviders,
-		CheckDestroy: testAccGrantCheckDestroy,
+		ProviderFactories: TestProviderFactories,
+		CheckDestroy:      testAccGrantCheckDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccGrantConfig_roleToUser(dbName, roleName),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("mysql_grant.test", "user", fmt.Sprintf("jdoe-%s", dbName)),
-					resource.TestCheckResourceAttr("mysql_grant.test", "host", "example.com"),
-					resource.TestCheckResourceAttr("mysql_grant.test", "roles.#", "1"),
+					resource.TestCheckResourceAttr("mysql_grant.test_util", "user", fmt.Sprintf("jdoe-%s", dbName)),
+					resource.TestCheckResourceAttr("mysql_grant.test_util", "host", "example.com"),
+					resource.TestCheckResourceAttr("mysql_grant.test_util", "roles.#", "1"),
 				),
 			},
 		},
@@ -190,7 +190,7 @@ func testAccPrivilegeExists(rn string, privilege string) resource.TestCheckFunc 
 			return fmt.Errorf("grant id not set")
 		}
 
-		db, err := connectToMySQL(testAccProvider.Meta().(*MySQLConfiguration))
+		db, err := ConnectToMySQL(TestAccProvider.Meta().(*MsSqlClient))
 		if err != nil {
 			return err
 		}
@@ -236,7 +236,7 @@ func testAccPrivilegeExists(rn string, privilege string) resource.TestCheckFunc 
 }
 
 func testAccGrantCheckDestroy(s *terraform.State) error {
-	db, err := connectToMySQL(testAccProvider.Meta().(*MySQLConfiguration))
+	db, err := ConnectToMySQL(TestAccProvider.Meta().(*MsSqlClient))
 	if err != nil {
 		return err
 	}
@@ -279,19 +279,19 @@ func testAccGrantCheckDestroy(s *terraform.State) error {
 
 func testAccGrantConfig_basic(dbName string) string {
 	return fmt.Sprintf(`
-resource "mysql_database" "test" {
+resource "mysql_database" "test_util" {
   name = "%s"
 }
 
-resource "mysql_user" "test" {
+resource "mysql_user" "test_util" {
   user     = "jdoe-%s"
   host     = "example.com"
 }
 
-resource "mysql_grant" "test" {
-  user       = "${mysql_user.test.user}"
-  host       = "${mysql_user.test.host}"
-  database   = "${mysql_database.test.name}"
+resource "mysql_grant" "test_util" {
+  user       = "${mysql_user.test_util.user}"
+  host       = "${mysql_user.test_util.host}"
+  database   = "${mysql_database.test_util.name}"
   privileges = ["UPDATE", "SELECT"]
 }
 `, dbName, dbName)
@@ -299,19 +299,19 @@ resource "mysql_grant" "test" {
 
 func testAccGrantConfig_ssl(dbName string) string {
 	return fmt.Sprintf(`
-resource "mysql_database" "test" {
+resource "mysql_database" "test_util" {
   name = "%s"
 }
 
-resource "mysql_user" "test" {
+resource "mysql_user" "test_util" {
   user     = "jdoe-%s"
   host     = "example.com"
 }
 
-resource "mysql_grant" "test" {
-  user       = "${mysql_user.test.user}"
-  host       = "${mysql_user.test.host}"
-  database   = "${mysql_database.test.name}"
+resource "mysql_grant" "test_util" {
+  user       = "${mysql_user.test_util.user}"
+  host       = "${mysql_user.test_util.host}"
+  database   = "${mysql_database.test_util.name}"
   privileges = ["UPDATE", "SELECT"]
   tls_option = "SSL"
 }
@@ -320,17 +320,17 @@ resource "mysql_grant" "test" {
 
 func testAccGrantConfig_role(dbName string, roleName string) string {
 	return fmt.Sprintf(`
-resource "mysql_database" "test" {
+resource "mysql_database" "test_util" {
   name = "%s"
 }
 
-resource "mysql_role" "test" {
+resource "mysql_role" "test_util" {
   name = "%s"
 }
 
-resource "mysql_grant" "test" {
-  role       = "${mysql_role.test.name}"
-  database   = "${mysql_database.test.name}"
+resource "mysql_grant" "test_util" {
+  role       = "${mysql_role.test_util.name}"
+  database   = "${mysql_database.test_util.name}"
   privileges = ["SELECT", "UPDATE"]
 }
 `, dbName, roleName)
@@ -338,7 +338,7 @@ resource "mysql_grant" "test" {
 
 func testAccGrantConfig_roleToUser(dbName string, roleName string) string {
 	return fmt.Sprintf(`
-resource "mysql_database" "test" {
+resource "mysql_database" "test_util" {
   name = "%s"
 }
 
@@ -347,15 +347,15 @@ resource "mysql_user" "jdoe" {
   host     = "example.com"
 }
 
-resource "mysql_role" "test" {
+resource "mysql_role" "test_util" {
   name = "%s"
 }
 
-resource "mysql_grant" "test" {
+resource "mysql_grant" "test_util" {
   user     = "${mysql_user.jdoe.user}"
   host     = "${mysql_user.jdoe.host}"
-  database = "${mysql_database.test.name}"
-  roles    = ["${mysql_role.test.name}"]
+  database = "${mysql_database.test_util.name}"
+  roles    = ["${mysql_role.test_util.name}"]
 }
 `, dbName, dbName, roleName)
 }

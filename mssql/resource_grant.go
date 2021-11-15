@@ -20,7 +20,7 @@ type MySQLGrant struct {
 	Grant      bool
 }
 
-func resourceGrant() *schema.Resource {
+func ResourceGrant() *schema.Resource {
 	return &schema.Resource{
 		Create: CreateGrant,
 		Update: UpdateGrant,
@@ -142,7 +142,7 @@ func userOrRole(user string, host string, role string, hasRoles bool) (string, b
 }
 
 func supportsRoles(db *sql.DB) (bool, error) {
-	currentVersion, err := serverVersion(db)
+	currentVersion, err := ServerVersion(db)
 	if err != nil {
 		return false, err
 	}
@@ -153,7 +153,7 @@ func supportsRoles(db *sql.DB) (bool, error) {
 }
 
 func CreateGrant(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
 		return err
 	}
@@ -232,7 +232,7 @@ func CreateGrant(d *schema.ResourceData, meta interface{}) error {
 }
 
 func ReadGrant(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
 		return err
 	}
@@ -282,7 +282,7 @@ func ReadGrant(d *schema.ResourceData, meta interface{}) error {
 }
 
 func UpdateGrant(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
 		return err
 	}
@@ -360,7 +360,7 @@ func updatePrivileges(d *schema.ResourceData, db *sql.DB, user string, database 
 }
 
 func DeleteGrant(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
 		return err
 	}
@@ -434,7 +434,7 @@ func ImportGrant(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceDa
 	user := d.Id()[0:lastSeparatorIndex]
 	host := d.Id()[lastSeparatorIndex+1:]
 
-	db, err := meta.(*MySQLConfiguration).GetDbConn()
+	db, err := GetDbConn(meta.(*MsSqlClient))
 	if err != nil {
 		return nil, err
 	}
@@ -455,7 +455,7 @@ func ImportGrant(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceDa
 }
 
 func restoreGrant(user string, host string, grant *MySQLGrant) *schema.ResourceData {
-	d := resourceGrant().Data(nil)
+	d := ResourceGrant().Data(nil)
 
 	database := grant.Database
 	id := fmt.Sprintf("%s@%s:%s", user, host, formatDatabaseName(database))
