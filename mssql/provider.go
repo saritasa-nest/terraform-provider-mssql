@@ -12,11 +12,9 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-version"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
-	"github.com/hashicorp/terraform-plugin-sdk/terraform"
-
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"golang.org/x/net/proxy"
 )
 
@@ -44,7 +42,7 @@ func (c *MySQLConfiguration) GetDbConn() (*sql.DB, error) {
 	return c.db, nil
 }
 
-func Provider() terraform.ResourceProvider {
+func Provider() *schema.Provider {
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{
 			"endpoint": {
@@ -123,12 +121,11 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			"mysql_database":      resourceDatabase(),
-			"mysql_grant":         resourceGrant(),
-			"mysql_role":          resourceRole(),
-			"mysql_user":          resourceUser(),
-			"mysql_user_password": resourceUserPassword(),
-			"mysql_sql":           resourceSql(),
+			"mysql_database": resourceDatabase(),
+			"mysql_grant":    resourceGrant(),
+			"mysql_role":     resourceRole(),
+			"mysql_user":     resourceUser(),
+			"mysql_sql":      resourceSql(),
 		},
 
 		ConfigureFunc: providerConfigure,
