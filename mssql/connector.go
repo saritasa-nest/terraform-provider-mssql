@@ -1,4 +1,4 @@
-package sql
+package mssql
 
 import (
 	"context"
@@ -8,46 +8,12 @@ import (
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
 	mssql "github.com/denisenkom/go-mssqldb"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/pkg/errors"
 	"log"
 	"net/url"
 	"strings"
 	"time"
 )
-
-type factory struct{}
-
-func (f factory) GetConnector(prefix string, data *schema.ResourceData) (interface{}, error) {
-	if len(prefix) > 0 {
-		prefix = prefix + ".0."
-	}
-
-	connector := &Connector{
-		Host:    data.Get(prefix + "host").(string),
-		Port:    data.Get(prefix + "port").(string),
-		Timeout: data.Timeout(schema.TimeoutRead),
-	}
-
-	if admin, ok := data.GetOk(prefix + "model.0"); ok {
-		admin := admin.(map[string]interface{})
-		connector.Login = &LoginUser{
-			Username: admin["username"].(string),
-			Password: admin["password"].(string),
-		}
-	}
-
-	if admin, ok := data.GetOk(prefix + "azure_login.0"); ok {
-		admin := admin.(map[string]interface{})
-		connector.AzureLogin = &AzureLogin{
-			TenantID:     admin["tenant_id"].(string),
-			ClientID:     admin["client_id"].(string),
-			ClientSecret: admin["client_secret"].(string),
-		}
-	}
-
-	return connector, nil
-}
 
 type Connector struct {
 	Host       string `json:"host"`
@@ -68,6 +34,14 @@ type AzureLogin struct {
 	TenantID     string `json:"tenant_id,omitempty"`
 	ClientID     string `json:"client_id,omitempty"`
 	ClientSecret string `json:"client_secret,omitempty"`
+}
+
+func (c *Connector) setDatabase(database *string) *Connector {
+	if *database == "" {
+		*database = "master"
+	}
+	c.Database = *database
+	return c
 }
 
 func (c *Connector) PingContext(ctx context.Context) error {
