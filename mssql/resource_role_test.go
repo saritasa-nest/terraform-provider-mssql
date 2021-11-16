@@ -16,13 +16,8 @@ func TestAccRole_basic(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck: func() {
-			db, err := ConnectToMySQL(TestAccProvider.Meta().(*MsSqlClient))
-			if err != nil {
-				return
-			}
-
 			requiredVersion, _ := version.NewVersion("8.0.0")
-			currentVersion, err := ServerVersion(db)
+			currentVersion, err := version.NewVersion("5.7.0")
 			if err != nil {
 				return
 			}
@@ -47,7 +42,7 @@ func TestAccRole_basic(t *testing.T) {
 
 func testAccRoleExists(roleName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		db, err := ConnectToMySQL(TestAccProvider.Meta().(*MsSqlClient))
+		db, err := TestAccProvider.Meta().(*Connector).db()
 		if err != nil {
 			return err
 		}
@@ -84,7 +79,7 @@ func testAccGetRoleGrantCount(roleName string, db *sql.DB) (int, error) {
 
 func testAccRoleCheckDestroy(roleName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		db, err := ConnectToMySQL(TestAccProvider.Meta().(*MsSqlClient))
+		db, err := TestAccProvider.Meta().(*Connector).db()
 		if err != nil {
 			return err
 		}

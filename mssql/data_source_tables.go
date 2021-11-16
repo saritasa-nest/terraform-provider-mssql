@@ -30,7 +30,7 @@ func DataSourceTables() *schema.Resource {
 }
 
 func ShowTables(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MsSqlClient).GetDbConn()
+	db, err := meta.(*Connector).db()
 	if err != nil {
 		return err
 	}
@@ -38,7 +38,7 @@ func ShowTables(d *schema.ResourceData, meta interface{}) error {
 	database := d.Get("database").(string)
 	pattern := d.Get("pattern").(string)
 
-	stmtSQL := fmt.Sprintf("SHOW TABLES FROM %s", QuoteIdentifier(database))
+	stmtSQL := fmt.Sprintf("SHOW TABLES FROM %s", database)
 
 	if pattern != "" {
 		stmtSQL += fmt.Sprintf(" LIKE '%s'", pattern)

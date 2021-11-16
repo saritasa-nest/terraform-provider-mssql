@@ -47,7 +47,7 @@ func ResourceDatabase() *schema.Resource {
 }
 
 func CreateDatabase(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	db, err := meta.(*MsSqlClient).GetDbConn()
+	db, err := meta.(*Connector).db()
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -66,7 +66,7 @@ func CreateDatabase(ctx context.Context, d *schema.ResourceData, meta interface{
 }
 
 func UpdateDatabase(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MsSqlClient).GetDbConn()
+	db, err := meta.(*Connector).db()
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func UpdateDatabase(d *schema.ResourceData, meta interface{}) error {
 }
 
 func ReadDatabase(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MsSqlClient).GetDbConn()
+	db, err := meta.(*Connector).db()
 	if err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func ReadDatabase(d *schema.ResourceData, meta interface{}) error {
 	// compatible in future releases.
 
 	name := d.Id()
-	stmtSQL := "SHOW CREATE DATABASE " + QuoteIdentifier(name)
+	stmtSQL := "SHOW CREATE DATABASE " + quoteIdentifier(name)
 
 	log.Println("Executing statement:", stmtSQL)
 	var createSQL, _database string
@@ -122,13 +122,13 @@ func ReadDatabase(d *schema.ResourceData, meta interface{}) error {
 }
 
 func DeleteDatabase(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MsSqlClient).GetDbConn()
+	db, err := meta.(*Connector).db()
 	if err != nil {
 		return err
 	}
 
 	name := d.Id()
-	stmtSQL := "DROP DATABASE " + QuoteIdentifier(name)
+	stmtSQL := "DROP DATABASE " + quoteIdentifier(name)
 	log.Println("Executing statement:", stmtSQL)
 
 	_, err = db.Exec(stmtSQL)
@@ -147,16 +147,16 @@ func databaseConfigSQL(verb string, d *schema.ResourceData) string {
 	var defaultCollationClause string
 
 	if defaultCharset != "" {
-		defaultCharsetClause = defaultCharacterSetKeyword + QuoteIdentifier(defaultCharset)
+		defaultCharsetClause = defaultCharacterSetKeyword + quoteIdentifier(defaultCharset)
 	}
 	if defaultCollation != "" {
-		defaultCollationClause = defaultCollateKeyword + QuoteIdentifier(defaultCollation)
+		defaultCollationClause = defaultCollateKeyword + quoteIdentifier(defaultCollation)
 	}
 
 	return fmt.Sprintf(
 		"%s DATABASE %s %s %s",
 		verb,
-		QuoteIdentifier(name),
+		quoteIdentifier(name),
 		defaultCharsetClause,
 		defaultCollationClause,
 	)

@@ -108,7 +108,7 @@ func testAccUserExists(rn string) resource.TestCheckFunc {
 			return fmt.Errorf("user id not set")
 		}
 
-		db, err := ConnectToMySQL(TestAccProvider.Meta().(*MsSqlClient))
+		db, err := TestAccProvider.Meta().(*Connector).db()
 		if err != nil {
 			return err
 		}
@@ -139,7 +139,7 @@ func testAccUserAuthExists(rn string) resource.TestCheckFunc {
 			return fmt.Errorf("user id not set")
 		}
 
-		db, err := ConnectToMySQL(TestAccProvider.Meta().(*MsSqlClient))
+		db, err := TestAccProvider.Meta().(*Connector).db()
 		if err != nil {
 			return err
 		}
@@ -160,7 +160,7 @@ func testAccUserAuthExists(rn string) resource.TestCheckFunc {
 }
 
 func testAccUserCheckDestroy(s *terraform.State) error {
-	db, err := ConnectToMySQL(TestAccProvider.Meta().(*MsSqlClient))
+	db, err := TestAccProvider.Meta().(*Connector).db()
 	if err != nil {
 		return err
 	}

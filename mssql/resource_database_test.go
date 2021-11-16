@@ -57,7 +57,7 @@ func TestAccDatabase_collationChange(t *testing.T) {
 			},
 			{
 				PreConfig: func() {
-					db, err := ConnectToMySQL(TestAccProvider.Meta().(*MsSqlClient))
+					db, err := TestAccProvider.Meta().(*Connector).db()
 					if err != nil {
 						return
 					}
@@ -88,7 +88,7 @@ func testAccDatabaseCheck_full(rn string, name string, charset string, collation
 			return fmt.Errorf("database id not set")
 		}
 
-		db, err := ConnectToMySQL(TestAccProvider.Meta().(*MsSqlClient))
+		db, err := TestAccProvider.Meta().(*Connector).db()
 		if err != nil {
 			return err
 		}
@@ -112,7 +112,7 @@ func testAccDatabaseCheck_full(rn string, name string, charset string, collation
 
 func testAccDatabaseCheckDestroy(name string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		db, err := ConnectToMySQL(TestAccProvider.Meta().(*MsSqlClient))
+		db, err := TestAccProvider.Meta().(*Connector).db()
 		if err != nil {
 			return err
 		}

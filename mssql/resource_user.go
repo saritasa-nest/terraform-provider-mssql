@@ -121,7 +121,7 @@ func UpdateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) d
 }
 
 func ReadUser(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MsSqlClient).GetDbConn()
+	db, err := meta.(*Connector).db()
 	if err != nil {
 		return err
 	}
@@ -144,7 +144,7 @@ func ReadUser(d *schema.ResourceData, meta interface{}) error {
 }
 
 func DeleteUser(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*MsSqlClient).GetDbConn()
+	db, err := meta.(*Connector).db()
 	if err != nil {
 		return err
 	}
@@ -172,7 +172,7 @@ func ImportUser(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceDat
 	user := d.Id()[0:lastSeparatorIndex]
 	host := d.Id()[lastSeparatorIndex+1:]
 
-	db, err := meta.(*MsSqlClient).GetDbConn()
+	db, err := meta.(*Connector).db()
 	if err != nil {
 		return nil, err
 	}

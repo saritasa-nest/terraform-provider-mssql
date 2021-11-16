@@ -210,3 +210,7 @@ func connect(connector driver.Connector) (*sql.DB, error) {
 	}
 	return db, nil
 }
+
+func quoteIdentifier(id string) string {
+	return id
+}
