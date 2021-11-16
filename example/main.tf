@@ -1,8 +1,3 @@
-# Microsoft SQL Server Terraform Provider
-
-## Usage
-
-```hcl
 terraform {
   required_providers {
     mssql = {
@@ -14,8 +9,7 @@ terraform {
 }
 
 provider "mssql" {
-  endpoint = "localhost"
-  username = "admin"
-  password = "mypass"
+  endpoint = var.host
+  username = var.user
+  password = var.password
 }
-```
