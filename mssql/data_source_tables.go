@@ -30,7 +30,7 @@ func DataSourceTables() *schema.Resource {
 }
 
 func ShowTables(d *schema.ResourceData, meta interface{}) error {
-	db, err := GetDbConn(meta.(*MsSqlClient))
+	db, err := meta.(*MsSqlClient).GetDbConn()
 	if err != nil {
 		return err
 	}

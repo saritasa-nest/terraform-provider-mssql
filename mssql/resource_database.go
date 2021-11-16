@@ -2,14 +2,12 @@ package mssql
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"log"
 	"strings"
 
 	"github.com/go-sql-driver/mysql"
-	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -49,7 +47,7 @@ func ResourceDatabase() *schema.Resource {
 }
 
 func CreateDatabase(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	db, err := GetDbConn(meta.(*MsSqlClient))
+	db, err := meta.(*MsSqlClient).GetDbConn()
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -68,7 +66,7 @@ func CreateDatabase(ctx context.Context, d *schema.ResourceData, meta interface{
 }
 
 func UpdateDatabase(d *schema.ResourceData, meta interface{}) error {
-	db, err := GetDbConn(meta.(*MsSqlClient))
+	db, err := meta.(*MsSqlClient).GetDbConn()
 	if err != nil {
 		return err
 	}
@@ -85,7 +83,7 @@ func UpdateDatabase(d *schema.ResourceData, meta interface{}) error {
 }
 
 func ReadDatabase(d *schema.ResourceData, meta interface{}) error {
-	db, err := GetDbConn(meta.(*MsSqlClient))
+	db, err := meta.(*MsSqlClient).GetDbConn()
 	if err != nil {
 		return err
 	}
@@ -114,40 +112,7 @@ func ReadDatabase(d *schema.ResourceData, meta interface{}) error {
 	defaultCharset := extractIdentAfter(createSQL, defaultCharacterSetKeyword)
 	defaultCollation := extractIdentAfter(createSQL, defaultCollateKeyword)
 
-	if defaultCollation == "" && defaultCharset != "" {
-		// MySQL doesn't return the collation if it's the default one for
-		// the charset, so if we don't have a collation we need to go
-		// hunt for the default.
-		stmtSQL := "SHOW COLLATION WHERE `Charset` = ? AND `Default` = 'Yes'"
-		var empty interface{}
-
-		requiredVersion, _ := version.NewVersion("8.0.0")
-		currentVersion, err := ServerVersion(db)
-		if err != nil {
-			return err
-		}
-
-		serverVersionString, err := ServerVersionString(db)
-		if err != nil {
-			return err
-		}
-
-		// MySQL 8 returns more data in a row.
-		var res error
-		if !strings.Contains(serverVersionString, "MariaDB") && currentVersion.GreaterThan(requiredVersion) {
-			res = db.QueryRow(stmtSQL, defaultCharset).Scan(&defaultCollation, &empty, &empty, &empty, &empty, &empty, &empty)
-		} else {
-			res = db.QueryRow(stmtSQL, defaultCharset).Scan(&defaultCollation, &empty, &empty, &empty, &empty, &empty)
-		}
-
-		if res != nil {
-			if res == sql.ErrNoRows {
-				return fmt.Errorf("Charset %s has no default collation", defaultCharset)
-			}
-
-			return fmt.Errorf("Error getting default charset: %s, %s", res, defaultCharset)
-		}
-	}
+	// TODO
 
 	d.Set("name", name)
 	d.Set("default_character_set", defaultCharset)
@@ -157,7 +122,7 @@ func ReadDatabase(d *schema.ResourceData, meta interface{}) error {
 }
 
 func DeleteDatabase(d *schema.ResourceData, meta interface{}) error {
-	db, err := GetDbConn(meta.(*MsSqlClient))
+	db, err := meta.(*MsSqlClient).GetDbConn()
 	if err != nil {
 		return err
 	}

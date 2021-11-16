@@ -1,209 +1,127 @@
 package mssql
 
 import (
+	"context"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/saritasa/terraform-provider-mssql/model"
 	"log"
 	"strings"
 
-	"errors"
-
-	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func ResourceUser() *schema.Resource {
 	return &schema.Resource{
-		Create: CreateUser,
-		Update: UpdateUser,
-		Read:   ReadUser,
-		Delete: DeleteUser,
+		CreateContext: CreateUser,
+		UpdateContext: UpdateUser,
+		Read:          ReadUser,
+		Delete:        DeleteUser,
 		Importer: &schema.ResourceImporter{
 			State: ImportUser,
 		},
 
 		Schema: map[string]*schema.Schema{
-			"user": {
+			"username": {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
 			},
 
-			"host": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-				Default:  "localhost",
-			},
-
-			"plaintext_password": {
-				Type:      schema.TypeString,
-				Optional:  true,
-				Sensitive: true,
-				StateFunc: HashSum,
-			},
-
 			"password": {
-				Type:          schema.TypeString,
-				Optional:      true,
-				ConflictsWith: []string{"plaintext_password"},
-				Sensitive:     true,
-				Deprecated:    "Please use plaintext_password instead",
+				Type:        schema.TypeString,
+				Optional:    true,
+				Sensitive:   true,
+				Description: "User password",
 			},
 
-			"tls_option": {
+			"object_id": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
+				Description: "External object ID",
+			},
+			"principal_id": {
+				Type:     schema.TypeInt,
+				Optional: true,
+			},
+			"login_name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User login",
+			},
+			"auth_type": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ForceNew: true,
-				Default:  "NONE",
+			},
+			"default_schema": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"default_language": {
+				Type:     schema.TypeString,
+				Optional: true,
 			},
 		},
 	}
 }
 
-func CreateUser(d *schema.ResourceData, meta interface{}) error {
-	db, err := GetDbConn(meta.(*MsSqlClient))
+func CreateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	connector := meta.(*Connector)
+	if err := connector.PingContext(ctx); err != nil {
+		return diag.FromErr(err)
+	}
+
+	user := model.User{
+		PrincipalID:     d.Get("principal_id").(int64),
+		Username:        d.Get("username").(string),
+		ObjectId:        d.Get("object_id").(string),
+		LoginName:       d.Get("login_name").(string),
+		Password:        d.Get("password").(string),
+		AuthType:        d.Get("auth_type").(string),
+		DefaultSchema:   d.Get("default_schema").(string),
+		DefaultLanguage: d.Get("default_language").(string),
+		Roles:           nil,
+	}
+
+	log.Println("Creating user: ", user.Username)
+
+	err := connector.createUser(ctx, connector.Database, &user)
+
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
-	var authStm string
-	var auth string
-	if v, ok := d.GetOk("auth_plugin"); ok {
-		auth = v.(string)
-	}
+	userId := fmt.Sprintf("%s/%s", connector.Database, user.Username)
+	d.SetId(userId)
 
-	if len(auth) > 0 {
-		switch auth {
-		case "AWSAuthenticationPlugin":
-			authStm = " IDENTIFIED WITH AWSAuthenticationPlugin as 'RDS'"
-		case "mysql_no_login":
-			authStm = " IDENTIFIED WITH mysql_no_login"
-		}
-	}
-
-	stmtSQL := fmt.Sprintf("CREATE USER '%s'@'%s'",
-		d.Get("user").(string),
-		d.Get("host").(string))
-
-	var password string
-	if v, ok := d.GetOk("plaintext_password"); ok {
-		password = v.(string)
-	} else {
-		password = d.Get("password").(string)
-	}
-
-	if auth == "AWSAuthenticationPlugin" && d.Get("host").(string) == "localhost" {
-		return errors.New("cannot use IAM auth against localhost")
-	}
-
-	if authStm != "" {
-		stmtSQL = stmtSQL + authStm
-	} else {
-		stmtSQL = stmtSQL + fmt.Sprintf(" IDENTIFIED BY '%s'", password)
-	}
-
-	requiredVersion, _ := version.NewVersion("5.7.0")
-	currentVersion, err := ServerVersion(db)
-	if err != nil {
-		return err
-	}
-
-	if currentVersion.GreaterThan(requiredVersion) && d.Get("tls_option").(string) != "" {
-		stmtSQL += fmt.Sprintf(" REQUIRE %s", d.Get("tls_option").(string))
-	}
-
-	log.Println("Executing statement:", stmtSQL)
-	_, err = db.Exec(stmtSQL)
-	if err != nil {
-		return err
-	}
-
-	user := fmt.Sprintf("%s@%s", d.Get("user").(string), d.Get("host").(string))
-	d.SetId(user)
-
-	return nil
+	return diag.Diagnostics{}
 }
 
-func UpdateUser(d *schema.ResourceData, meta interface{}) error {
-	db, err := GetDbConn(meta.(*MsSqlClient))
-	if err != nil {
-		return err
+func UpdateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	connector := meta.(*Connector)
+	if err := connector.PingContext(ctx); err != nil {
+		return diag.FromErr(err)
 	}
 
-	var auth string
-	if v, ok := d.GetOk("auth_plugin"); ok {
-		auth = v.(string)
+	user := model.User{
+		PrincipalID:     d.Get("principal_id").(int64),
+		Username:        d.Get("username").(string),
+		ObjectId:        d.Get("object_id").(string),
+		LoginName:       d.Get("login_name").(string),
+		Password:        d.Get("password").(string),
+		AuthType:        d.Get("auth_type").(string),
+		DefaultSchema:   d.Get("default_schema").(string),
+		DefaultLanguage: d.Get("default_language").(string),
+		Roles:           nil,
 	}
 
-	if len(auth) > 0 {
-		// nothing to change, return
-		return nil
-	}
-
-	var newpw interface{}
-	if d.HasChange("plaintext_password") {
-		_, newpw = d.GetChange("plaintext_password")
-	} else if d.HasChange("password") {
-		_, newpw = d.GetChange("password")
-	} else {
-		newpw = nil
-	}
-
-	if newpw != nil {
-		var stmtSQL string
-
-		/* ALTER USER syntax introduced in MySQL 5.7.6 deprecates SET PASSWORD (GH-8230) */
-		serverVersion, err := ServerVersion(db)
-		if err != nil {
-			return fmt.Errorf("Could not determine server version: %s", err)
-		}
-
-		ver, _ := version.NewVersion("5.7.6")
-		if serverVersion.LessThan(ver) {
-			stmtSQL = fmt.Sprintf("SET PASSWORD FOR '%s'@'%s' = PASSWORD('%s')",
-				d.Get("user").(string),
-				d.Get("host").(string),
-				newpw.(string))
-		} else {
-			stmtSQL = fmt.Sprintf("ALTER USER '%s'@'%s' IDENTIFIED BY '%s'",
-				d.Get("user").(string),
-				d.Get("host").(string),
-				newpw.(string))
-		}
-
-		log.Println("Executing statement:", stmtSQL)
-		_, err = db.Exec(stmtSQL)
-		if err != nil {
-			return err
-		}
-	}
-
-	requiredVersion, _ := version.NewVersion("5.7.0")
-	currentVersion, err := ServerVersion(db)
-	if err != nil {
-		return err
-	}
-
-	if d.HasChange("tls_option") && currentVersion.GreaterThan(requiredVersion) {
-		var stmtSQL string
-
-		stmtSQL = fmt.Sprintf("ALTER USER '%s'@'%s'  REQUIRE %s",
-			d.Get("user").(string),
-			d.Get("host").(string),
-			fmt.Sprintf(" REQUIRE %s", d.Get("tls_option").(string)))
-
-		log.Println("Executing statement:", stmtSQL)
-		_, err := db.Exec(stmtSQL)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	err := connector.updateUser(ctx, connector.Database, &user)
+	return diag.FromErr(err)
 }
 
 func ReadUser(d *schema.ResourceData, meta interface{}) error {
-	db, err := GetDbConn(meta.(*MsSqlClient))
+	db, err := meta.(*MsSqlClient).GetDbConn()
 	if err != nil {
 		return err
 	}
@@ -226,7 +144,7 @@ func ReadUser(d *schema.ResourceData, meta interface{}) error {
 }
 
 func DeleteUser(d *schema.ResourceData, meta interface{}) error {
-	db, err := GetDbConn(meta.(*MsSqlClient))
+	db, err := meta.(*MsSqlClient).GetDbConn()
 	if err != nil {
 		return err
 	}
@@ -254,7 +172,7 @@ func ImportUser(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceDat
 	user := d.Id()[0:lastSeparatorIndex]
 	host := d.Id()[lastSeparatorIndex+1:]
 
-	db, err := GetDbConn(meta.(*MsSqlClient))
+	db, err := meta.(*MsSqlClient).GetDbConn()
 	if err != nil {
 		return nil, err
 	}

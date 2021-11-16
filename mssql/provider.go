@@ -64,7 +64,6 @@ func Provider() *schema.Provider {
 
 		ResourcesMap: map[string]*schema.Resource{
 			"mssql_database": ResourceDatabase(),
-			"mssql_grant":    ResourceGrant(),
 			"mssql_role":     ResourceRole(),
 			"mssql_user":     ResourceUser(),
 			"mssql_sql":      ResourceSql(),
@@ -76,14 +75,16 @@ func Provider() *schema.Provider {
 
 func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
 
-	var endpoint = d.Get("endpoint").(string)
-
-	client := MsSqlClient{
-		Host:     endpoint,
-		Port:     d.Get("port").(int),
-		Username: d.Get("username").(string),
-		Password: d.Get("password").(string),
+	client := &Connector{
+		Host:     d.Get("endpoint").(string),
+		Port:     d.Get("port").(string),
 		Database: d.Get("database").(string),
+		Timeout:  d.Timeout(schema.TimeoutRead),
+
+		Login: &LoginUser{
+			Username: d.Get("username").(string),
+			Password: d.Get("password").(string),
+		},
 	}
 
 	return client, diag.Diagnostics{}

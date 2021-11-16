@@ -33,7 +33,7 @@ func ResourceSql() *schema.Resource {
 }
 
 func CreateSql(d *schema.ResourceData, meta interface{}) error {
-	db, err := GetDbConn(meta.(*MsSqlClient))
+	db, err := meta.(*MsSqlClient).GetDbConn()
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func ReadSql(d *schema.ResourceData, meta interface{}) error {
 }
 
 func DeleteSql(d *schema.ResourceData, meta interface{}) error {
-	db, err := GetDbConn(meta.(*MsSqlClient))
+	db, err := meta.(*MsSqlClient).GetDbConn()
 	if err != nil {
 		return err
 	}

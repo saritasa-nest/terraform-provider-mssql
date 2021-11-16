@@ -1,4 +1,4 @@
-package sql
+package mssql
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func (c *Connector) GetUser(ctx context.Context, database, username string) (*model.User, error) {
+func (c *Connector) InternalGetUser(ctx context.Context, database, username string) (*model.User, error) {
 	cmd := `DECLARE @stmt nvarchar(max)
           IF @@VERSION LIKE 'Microsoft SQL Azure%'
             BEGIN
@@ -82,7 +82,7 @@ func (c *Connector) GetUser(ctx context.Context, database, username string) (*mo
 	return &user, nil
 }
 
-func (c *Connector) CreateUser(ctx context.Context, database string, user *model.User) error {
+func (c *Connector) createUser(ctx context.Context, database string, user *model.User) error {
 	cmd := `DECLARE @stmt nvarchar(max)
           DECLARE @language nvarchar(max) = @defaultLanguage
           IF @language = '' SET @language = NULL
@@ -161,10 +161,6 @@ func (c *Connector) CreateUser(ctx context.Context, database string, user *model
                       'CLOSE role_cur;' +
                       'DEALLOCATE role_cur;'
           EXEC (@stmt)`
-	_, err := c.GetLogin(ctx, user.LoginName)
-	if err != nil {
-		return err
-	}
 	return c.
 		setDatabase(&database).
 		ExecContext(ctx, cmd,
@@ -180,7 +176,7 @@ func (c *Connector) CreateUser(ctx context.Context, database string, user *model
 		)
 }
 
-func (c *Connector) UpdateUser(ctx context.Context, database string, user *model.User) error {
+func (c *Connector) updateUser(ctx context.Context, database string, user *model.User) error {
 	cmd := `DECLARE @stmt nvarchar(max)
           SET @stmt = 'ALTER USER ' + QuoteName(@username) + ' '
           DECLARE @language nvarchar(max) = @defaultLanguage
@@ -262,12 +258,4 @@ func (c *Connector) DeleteUser(ctx context.Context, database, username string) e
 	return c.
 		setDatabase(&database).
 		ExecContext(ctx, cmd, sql.Named("database", database), sql.Named("username", username))
-}
-
-func (c *Connector) setDatabase(database *string) *Connector {
-	if *database == "" {
-		*database = "master"
-	}
-	c.Database = *database
-	return c
 }

@@ -24,7 +24,7 @@ func ResourceRole() *schema.Resource {
 }
 
 func CreateRole(d *schema.ResourceData, meta interface{}) error {
-	db, err := GetDbConn(meta.(*MsSqlClient))
+	db, err := meta.(*MsSqlClient).GetDbConn()
 	if err != nil {
 		return err
 	}
@@ -45,7 +45,7 @@ func CreateRole(d *schema.ResourceData, meta interface{}) error {
 }
 
 func ReadRole(d *schema.ResourceData, meta interface{}) error {
-	db, err := GetDbConn(meta.(*MsSqlClient))
+	db, err := meta.(*MsSqlClient).GetDbConn()
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func ReadRole(d *schema.ResourceData, meta interface{}) error {
 }
 
 func DeleteRole(d *schema.ResourceData, meta interface{}) error {
-	db, err := GetDbConn(meta.(*MsSqlClient))
+	db, err := meta.(*MsSqlClient).GetDbConn()
 	if err != nil {
 		return err
 	}
