@@ -1,12 +1,6 @@
-**This repository is an unofficial fork**
+# Microsoft SQL Server Terraform Provider
 
----
-
-Terraform Provider
-==================
-
-Usage
------
+## Usage
 
 ```hcl
 terraform {
@@ -22,5 +16,6 @@ terraform {
 provider "mssql" {
   endpoint = "localhost"
   username = "admin"
+  password = "mypass"
 }
 ```

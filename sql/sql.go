@@ -13,15 +13,10 @@ import (
 	"log"
 	"net/url"
 	"strings"
-	"terraform-provider-mssql/mssql/model"
 	"time"
 )
 
 type factory struct{}
-
-func GetFactory() model.ConnectorFactory {
-	return new(factory)
-}
 
 func (f factory) GetConnector(prefix string, data *schema.ResourceData) (interface{}, error) {
 	if len(prefix) > 0 {

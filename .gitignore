@@ -4,8 +4,9 @@
 example.tf
 terraform.tfplan
 terraform.tfstate
-terraform-provider-mysql
+terraform-provider-mssql
 bin/
+vendor/
 modules-dev/
 /pkg/
 website/.vagrant
@@ -23,7 +24,6 @@ website/node_modules
 .idea
 *.iml
 *.test
-*.iml
 
 website/vendor
 

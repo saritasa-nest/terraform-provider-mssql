@@ -3,8 +3,8 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"github.com/saritasa/terraform-provider-mssql/model"
 	"strings"
-	"terraform-provider-mssql/mssql/model"
 )
 
 func (c *Connector) GetUser(ctx context.Context, database, username string) (*model.User, error) {
