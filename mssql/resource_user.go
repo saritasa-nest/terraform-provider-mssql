@@ -73,7 +73,7 @@ func CreateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) d
 	}
 
 	user := model.User{
-		PrincipalID:     d.Get("principal_id").(int64),
+		PrincipalID:     int64(d.Get("principal_id").(int)),
 		Username:        d.Get("username").(string),
 		ObjectId:        d.Get("object_id").(string),
 		LoginName:       d.Get("login_name").(string),
