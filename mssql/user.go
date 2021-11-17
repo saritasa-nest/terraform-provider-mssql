@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func (c *Connector) InternalGetUser(ctx context.Context, database, username string) (*model.User, error) {
+func (c *Connector) getUser(ctx context.Context, database, username string) (*model.User, error) {
 	cmd := `DECLARE @stmt nvarchar(max)
           IF @@VERSION LIKE 'Microsoft SQL Azure%'
             BEGIN
@@ -250,7 +250,7 @@ func (c *Connector) updateUser(ctx context.Context, database string, user *model
 		)
 }
 
-func (c *Connector) DeleteUser(ctx context.Context, database, username string) error {
+func (c *Connector) deleteUser(ctx context.Context, database, username string) error {
 	cmd := `DECLARE @stmt nvarchar(max)
           SET @stmt = 'IF EXISTS (SELECT 1 FROM ' + QuoteName(@database) + '.[sys].[database_principals] WHERE [name] = ' + QuoteName(@username, '''') + ') ' +
                       'DROP USER ' + QuoteName(@username)

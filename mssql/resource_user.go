@@ -15,10 +15,10 @@ func ResourceUser() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: CreateUser,
 		UpdateContext: UpdateUser,
-		Read:          ReadUser,
-		Delete:        DeleteUser,
+		ReadContext:   ReadUser,
+		DeleteContext: DeleteUser,
 		Importer: &schema.ResourceImporter{
-			State: ImportUser,
+			StateContext: ImportUser,
 		},
 
 		Schema: map[string]*schema.Schema{
@@ -62,6 +62,13 @@ func ResourceUser() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 			},
+			"roles": {
+				Type:     schema.TypeList,
+				Optional: true,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
+			},
 		},
 	}
 }
@@ -72,17 +79,7 @@ func CreateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) d
 		return diag.FromErr(err)
 	}
 
-	user := model.User{
-		PrincipalID:     int64(d.Get("principal_id").(int)),
-		Username:        d.Get("username").(string),
-		ObjectId:        d.Get("object_id").(string),
-		LoginName:       d.Get("login_name").(string),
-		Password:        d.Get("password").(string),
-		AuthType:        d.Get("auth_type").(string),
-		DefaultSchema:   d.Get("default_schema").(string),
-		DefaultLanguage: d.Get("default_language").(string),
-		Roles:           nil,
-	}
+	user := model.SchemaToUser(d)
 
 	log.Println("Creating user: ", user.Username)
 
@@ -105,7 +102,7 @@ func UpdateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) d
 	}
 
 	user := model.User{
-		PrincipalID:     d.Get("principal_id").(int64),
+		PrincipalID:     int64(d.Get("principal_id").(int)),
 		Username:        d.Get("username").(string),
 		ObjectId:        d.Get("object_id").(string),
 		LoginName:       d.Get("login_name").(string),
@@ -113,84 +110,59 @@ func UpdateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) d
 		AuthType:        d.Get("auth_type").(string),
 		DefaultSchema:   d.Get("default_schema").(string),
 		DefaultLanguage: d.Get("default_language").(string),
-		Roles:           nil,
+		Roles:           d.Get("roles").([]string),
 	}
 
 	err := connector.updateUser(ctx, connector.Database, &user)
 	return diag.FromErr(err)
 }
 
-func ReadUser(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*Connector).db()
-	if err != nil {
-		return err
+func ReadUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	connector := meta.(*Connector)
+
+	user, err := connector.getUser(ctx, connector.Database, d.Get("username").(string))
+	diags := diag.FromErr(err)
+
+	if user != nil {
+		d.SetId(fmt.Sprintf("%s/%s", connector.Database, user.Username))
+		diags = user.ToSchema(d)
 	}
-
-	stmtSQL := fmt.Sprintf("SELECT USER FROM mysql.user WHERE USER='%s'",
-		d.Get("user").(string))
-
-	log.Println("Executing statement:", stmtSQL)
-
-	rows, err := db.Query(stmtSQL)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	if !rows.Next() && rows.Err() == nil {
-		d.SetId("")
-	}
-	return rows.Err()
+	return diags
 }
 
-func DeleteUser(d *schema.ResourceData, meta interface{}) error {
-	db, err := meta.(*Connector).db()
-	if err != nil {
-		return err
-	}
+func DeleteUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	connector := meta.(*Connector)
+	user := model.SchemaToUser(d)
 
-	stmtSQL := fmt.Sprintf("DROP USER '%s'@'%s'",
-		d.Get("user").(string),
-		d.Get("host").(string))
+	err := connector.deleteUser(ctx, connector.Database, user.Username)
 
-	log.Println("Executing statement:", stmtSQL)
-
-	_, err = db.Exec(stmtSQL)
 	if err == nil {
 		d.SetId("")
 	}
-	return err
+	return diag.FromErr(err)
 }
 
-func ImportUser(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
-	lastSeparatorIndex := strings.LastIndex(d.Id(), "@")
+func ImportUser(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+	lastSeparatorIndex := strings.LastIndex(d.Id(), "/")
 
 	if lastSeparatorIndex <= 0 {
-		return nil, fmt.Errorf("wrong ID format %s (expected USER@HOST)", d.Id())
+		return nil, fmt.Errorf("wrong ID format %s (expected database/username)", d.Id())
 	}
 
-	user := d.Id()[0:lastSeparatorIndex]
-	host := d.Id()[lastSeparatorIndex+1:]
+	username := d.Id()[0:lastSeparatorIndex]
+	database := d.Id()[lastSeparatorIndex+1:]
 
-	db, err := meta.(*Connector).db()
+	connector := meta.(*Connector)
+	user, err := connector.getUser(ctx, database, username)
 	if err != nil {
 		return nil, err
 	}
 
-	var count int
-	err = db.QueryRow("SELECT COUNT(1) FROM mysql.user WHERE user = ? AND host = ?", user, host).Scan(&count)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if count == 0 {
+	if user == nil {
 		return nil, fmt.Errorf("user '%s' not found", d.Id())
 	}
 
-	d.Set("user", user)
-	d.Set("host", host)
-	d.Set("tls_option", "NONE")
+	user.ToSchema(d)
 
 	return []*schema.ResourceData{d}, nil
 }

@@ -15,7 +15,7 @@ build: fmtcheck
 
 install: build
 	mkdir -p $(PROVIDER_DIR)
-	cp terraform-provider-mssql $(PROVIDER_DIR)/terraform-provider-mssql_$(VERSION)
+	mv terraform-provider-mssql $(PROVIDER_DIR)/terraform-provider-mssql_$(VERSION)
 
 test: fmtcheck
 	go test -i $(TEST) || exit 1
