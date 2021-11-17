@@ -10,6 +10,7 @@ terraform {
 
 provider "mssql" {
   endpoint = var.host
+  port     = var.port
   username = var.user
   password = var.password
 }

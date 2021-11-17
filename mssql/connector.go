@@ -17,7 +17,7 @@ import (
 
 type Connector struct {
 	Host       string `json:"host"`
-	Port       string `json:"port"`
+	Port       int    `json:"port"`
 	Database   string `json:"database"`
 	Login      *LoginUser
 	AzureLogin *AzureLogin

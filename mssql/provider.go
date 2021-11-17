@@ -18,7 +18,7 @@ func Provider() *schema.Provider {
 
 			"port": {
 				Type:        schema.TypeInt,
-				Required:    false,
+				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("MSSQL_PORT", 1433),
 				Description: "MSSQL server port",
 			},
@@ -77,7 +77,7 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 
 	client := &Connector{
 		Host:     d.Get("endpoint").(string),
-		Port:     d.Get("port").(string),
+		Port:     d.Get("port").(int),
 		Database: d.Get("database").(string),
 		Timeout:  d.Timeout(schema.TimeoutRead),
 
