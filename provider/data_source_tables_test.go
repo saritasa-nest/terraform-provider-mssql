@@ -1,4 +1,4 @@
-package mssql
+package provider
 
 import (
 	"fmt"

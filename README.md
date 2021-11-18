@@ -6,7 +6,7 @@
 terraform {
   required_providers {
     mssql = {
-      source  = "saritasa/mssql"
+      source  = "saritasa/provider"
       version = "~> 0.1.0"
     }
   }

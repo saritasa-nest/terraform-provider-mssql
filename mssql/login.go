@@ -25,23 +25,23 @@ func (c *Connector) GetLogin(ctx context.Context, name string) (*model.Login, er
 }
 
 func (c *Connector) CreateLogin(ctx context.Context, name, password, defaultDatabase, defaultLanguage string) error {
-	cmd := `DECLARE @sql nvarchar(max)
-          SET @sql = 'CREATE LOGIN ' + QuoteName(@name) + ' ' +
+	cmd := `DECLARE @mssql nvarchar(max)
+          SET @mssql = 'CREATE LOGIN ' + QuoteName(@name) + ' ' +
                      'WITH PASSWORD = ' + QuoteName(@password, '''')
           IF @@VERSION NOT LIKE 'Microsoft SQL Azure%'
             BEGIN
               IF @defaultDatabase = '' SET @defaultDatabase = 'master'
               IF NOT @defaultDatabase = 'master'
                 BEGIN
-                  SET @sql = @sql + ', DEFAULT_DATABASE = ' + QuoteName(@defaultDatabase)
+                  SET @mssql = @mssql + ', DEFAULT_DATABASE = ' + QuoteName(@defaultDatabase)
                 END
               DECLARE @serverLanguage nvarchar(max) = (SELECT lang.name FROM [sys].[configurations] c INNER JOIN [sys].[syslanguages] lang ON c.[value] = lang.langid WHERE c.name = 'default language')
               IF NOT @defaultLanguage IN ('', @serverLanguage)
                 BEGIN
-                  SET @sql = @sql + ', DEFAULT_LANGUAGE = ' + QuoteName(@defaultLanguage)
+                  SET @mssql = @mssql + ', DEFAULT_LANGUAGE = ' + QuoteName(@defaultLanguage)
                 END
             END
-          EXEC (@sql)`
+          EXEC (@mssql)`
 	database := "master"
 	return c.
 		setDatabase(&database).
@@ -53,24 +53,24 @@ func (c *Connector) CreateLogin(ctx context.Context, name, password, defaultData
 }
 
 func (c *Connector) UpdateLogin(ctx context.Context, name, password, defaultDatabase, defaultLanguage string) error {
-	cmd := `DECLARE @sql nvarchar(max)
-          SET @sql = 'ALTER LOGIN ' + QuoteName(@name) + ' ' +
+	cmd := `DECLARE @mssql nvarchar(max)
+          SET @mssql = 'ALTER LOGIN ' + QuoteName(@name) + ' ' +
                      'WITH PASSWORD = ' + QuoteName(@password, '''')
           IF @@VERSION NOT LIKE 'Microsoft SQL Azure%'
             BEGIN
               IF @defaultDatabase = '' SET @defaultDatabase = 'master'
               IF NOT @defaultDatabase IN (SELECT default_database_name FROM [master].[sys].[sql_logins] WHERE [name] = @name)
                 BEGIN
-                  SET @sql = @sql + ', DEFAULT_DATABASE = ' + QuoteName(@defaultDatabase)
+                  SET @mssql = @mssql + ', DEFAULT_DATABASE = ' + QuoteName(@defaultDatabase)
                 END
                 DECLARE @language nvarchar(max) = @defaultLanguage
               IF @language = '' SET @language = (SELECT lang.name FROM [sys].[configurations] c INNER JOIN [sys].[syslanguages] lang ON c.[value] = lang.langid WHERE c.name = 'default language')
               IF @language != (SELECT default_language_name FROM [master].[sys].[sql_logins] WHERE [name] = @name)
                 BEGIN
-                  SET @sql = @sql + ', DEFAULT_LANGUAGE = ' + QuoteName(@language)
+                  SET @mssql = @mssql + ', DEFAULT_LANGUAGE = ' + QuoteName(@language)
                 END
               END
-          EXEC (@sql)`
+          EXEC (@mssql)`
 	return c.ExecContext(ctx, cmd,
 		sql.Named("name", name),
 		sql.Named("password", password),
@@ -82,10 +82,10 @@ func (c *Connector) DeleteLogin(ctx context.Context, name string) error {
 	if err := c.killSessionsForLogin(ctx, name); err != nil {
 		return err
 	}
-	cmd := `DECLARE @sql nvarchar(max)
-          SET @sql = 'IF EXISTS (SELECT 1 FROM [master].[sys].[sql_logins] WHERE [name] = ' + QuoteName(@name, '''') + ') ' +
+	cmd := `DECLARE @mssql nvarchar(max)
+          SET @mssql = 'IF EXISTS (SELECT 1 FROM [master].[sys].[sql_logins] WHERE [name] = ' + QuoteName(@name, '''') + ') ' +
                      'DROP LOGIN ' + QuoteName(@name)
-          EXEC (@sql)`
+          EXEC (@mssql)`
 	return c.ExecContext(ctx, cmd, sql.Named("name", name))
 }
 

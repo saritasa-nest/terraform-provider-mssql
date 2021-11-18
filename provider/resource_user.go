@@ -1,10 +1,11 @@
-package mssql
+package provider
 
 import (
 	"context"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/saritasa/terraform-provider-mssql/model"
+	"github.com/saritasa/terraform-provider-mssql/mssql"
 	"log"
 	"strings"
 
@@ -74,7 +75,7 @@ func ResourceUser() *schema.Resource {
 }
 
 func CreateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	connector := meta.(*Connector)
+	connector := meta.(*mssql.Connector)
 	if err := connector.PingContext(ctx); err != nil {
 		return diag.FromErr(err)
 	}
@@ -84,10 +85,11 @@ func CreateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) d
 	log.Println("Creating user: ", user.Username)
 
 	err := connector.createUser(ctx, connector.Database, &user)
-
 	if err != nil {
 		return diag.FromErr(err)
 	}
+
+	log.Println("User created: ", user.Username)
 
 	userId := fmt.Sprintf("%s/%s", connector.Database, user.Username)
 	d.SetId(userId)
@@ -96,7 +98,7 @@ func CreateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) d
 }
 
 func UpdateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	connector := meta.(*Connector)
+	connector := meta.(*mssql.Connector)
 	if err := connector.PingContext(ctx); err != nil {
 		return diag.FromErr(err)
 	}
@@ -118,7 +120,7 @@ func UpdateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) d
 }
 
 func ReadUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	connector := meta.(*Connector)
+	connector := meta.(*mssql.Connector)
 
 	user, err := connector.getUser(ctx, connector.Database, d.Get("username").(string))
 	diags := diag.FromErr(err)
@@ -131,7 +133,7 @@ func ReadUser(ctx context.Context, d *schema.ResourceData, meta interface{}) dia
 }
 
 func DeleteUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	connector := meta.(*Connector)
+	connector := meta.(*mssql.Connector)
 	user := model.SchemaToUser(d)
 
 	err := connector.deleteUser(ctx, connector.Database, user.Username)
@@ -152,7 +154,11 @@ func ImportUser(ctx context.Context, d *schema.ResourceData, meta interface{}) (
 	username := d.Id()[0:lastSeparatorIndex]
 	database := d.Id()[lastSeparatorIndex+1:]
 
-	connector := meta.(*Connector)
+	connector := meta.(*mssql.Connector)
+	if err := connector.PingContext(ctx); err != nil {
+		return nil, fmt.Errorf("cannot connect to db '%s'", connector.connectionString())
+	}
+
 	user, err := connector.getUser(ctx, database, username)
 	if err != nil {
 		return nil, err

@@ -1,4 +1,4 @@
-package mssql
+package provider
 
 const (
 	serverProp               = "server"

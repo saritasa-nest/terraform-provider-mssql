@@ -122,15 +122,15 @@ func (c *Connector) createUser(ctx context.Context, database string, user *model
             END
           IF exists (select compatibility_level FROM sys.databases where name = db_name() and compatibility_level < 130)
           BEGIN
-              DECLARE @sql NVARCHAR(MAX);
-              SET @sql = N'Create FUNCTION [dbo].[String_Split]
+              DECLARE @mssql NVARCHAR(MAX);
+              SET @mssql = N'Create FUNCTION [dbo].[String_Split]
                     (
                         @string    nvarchar(max),
                         @delimiter nvarchar(max)
                     )
                     /*
                         The same as STRING_SPLIT for compatibility level < 130
-                        https://docs.microsoft.com/en-us/sql/t-sql/functions/string-split-transact-sql?view=sql-server-ver15
+                        https://docs.microsoft.com/en-us/mssql/t-mssql/functions/string-split-transact-mssql?view=mssql-server-ver15
                     */
                     RETURNS TABLE AS RETURN
                     (
@@ -144,7 +144,7 @@ func (c *Connector) createUser(ctx context.Context, database string, user *model
                         ) AS a
                         CROSS APPLY String.nodes(''/X'') AS Split(a)
                     )';
-              EXEC sp_executesql @sql;
+              EXEC sp_executesql @mssql;
           END
           SET @stmt = @stmt + '; ' +
                       'DECLARE role_cur CURSOR FOR SELECT name FROM ' + QuoteName(@database) + '.[sys].[database_principals] WHERE type = ''R'' AND name != ''public'' AND name COLLATE SQL_Latin1_General_CP1_CI_AS IN (SELECT value FROM String_Split(' + QuoteName(@roles, '''') + ', '',''));' +
@@ -153,9 +153,9 @@ func (c *Connector) createUser(ctx context.Context, database string, user *model
                       'FETCH NEXT FROM role_cur INTO @role;' +
                       'WHILE @@FETCH_STATUS = 0' +
                       '  BEGIN' +
-                      '    DECLARE @sql nvarchar(max);' +
-                      '    SET @sql = ''ALTER ROLE '' + QuoteName(@role) + '' ADD MEMBER ' + QuoteName(@username) + ''';' +
-                      '    EXEC (@sql);' +
+                      '    DECLARE @mssql nvarchar(max);' +
+                      '    SET @mssql = ''ALTER ROLE '' + QuoteName(@role) + '' ADD MEMBER ' + QuoteName(@username) + ''';' +
+                      '    EXEC (@mssql);' +
                       '    FETCH NEXT FROM role_cur INTO @role;' +
                       '  END;' +
                       'CLOSE role_cur;' +
@@ -189,15 +189,15 @@ func (c *Connector) updateUser(ctx context.Context, database string, user *model
             END
           IF exists (select compatibility_level FROM sys.databases where name = db_name() and compatibility_level < 130)
           BEGIN
-              DECLARE @sql NVARCHAR(MAX);
-              SET @sql = N'Create FUNCTION [dbo].[String_Split]
+              DECLARE @mssql NVARCHAR(MAX);
+              SET @mssql = N'Create FUNCTION [dbo].[String_Split]
                     (
                         @string    nvarchar(max),
                         @delimiter nvarchar(max)
                     )
                     /*
                         The same as STRING_SPLIT for compatibility level < 130
-                        https://docs.microsoft.com/en-us/sql/t-sql/functions/string-split-transact-sql?view=sql-server-ver15
+                        https://docs.microsoft.com/en-us/mssql/t-mssql/functions/string-split-transact-mssql?view=mssql-server-ver15
                     */
                     RETURNS TABLE AS RETURN
                     (
@@ -211,10 +211,10 @@ func (c *Connector) updateUser(ctx context.Context, database string, user *model
                         ) AS a
                         CROSS APPLY String.nodes(''/X'') AS Split(a)
                     )';
-              EXEC sp_executesql @sql;
+              EXEC sp_executesql @mssql;
           END
           SET @stmt = @stmt + '; ' +
-                      'DECLARE @sql nvarchar(max);' +
+                      'DECLARE @mssql nvarchar(max);' +
                       'DECLARE @role nvarchar(max);' +
                       'DECLARE del_role_cur CURSOR FOR SELECT name FROM ' + QuoteName(@database) + '.[sys].[database_principals] WHERE type = ''R'' AND name != ''public'' AND name IN (SELECT name FROM ' + QuoteName(@database) + '.[sys].[database_role_members] drm, ' + QuoteName(@database) + '.[sys].[database_principals] db WHERE drm.member_principal_id = DATABASE_PRINCIPAL_ID(' + QuoteName(@username, '''') + ') AND drm.role_principal_id = db.principal_id) AND name COLLATE SQL_Latin1_General_CP1_CI_AS NOT IN(SELECT value FROM String_Split(' + QuoteName(@roles, '''') + ', '',''));' +
                       'DECLARE add_role_cur CURSOR FOR SELECT name FROM ' + QuoteName(@database) + '.[sys].[database_principals] WHERE type = ''R'' AND name != ''public'' AND name NOT IN (SELECT name FROM ' + QuoteName(@database) + '.[sys].[database_role_members] drm, ' + QuoteName(@database) + '.[sys].[database_principals] db WHERE drm.member_principal_id = DATABASE_PRINCIPAL_ID(' + QuoteName(@username, '''') + ') AND drm.role_principal_id = db.principal_id) AND name COLLATE SQL_Latin1_General_CP1_CI_AS IN(SELECT value FROM String_Split(' + QuoteName(@roles, '''') + ', '',''));' +
@@ -222,8 +222,8 @@ func (c *Connector) updateUser(ctx context.Context, database string, user *model
                       'FETCH NEXT FROM del_role_cur INTO @role;' +
                       'WHILE @@FETCH_STATUS = 0' +
                       '  BEGIN' +
-                      '    SET @sql = ''ALTER ROLE '' + QuoteName(@role) + '' DROP MEMBER ' + QuoteName(@username) + ''';' +
-                      '    EXEC (@sql);' +
+                      '    SET @mssql = ''ALTER ROLE '' + QuoteName(@role) + '' DROP MEMBER ' + QuoteName(@username) + ''';' +
+                      '    EXEC (@mssql);' +
                       '    FETCH NEXT FROM del_role_cur INTO @role;' +
                       '  END;' +
                       'CLOSE del_role_cur;' +
@@ -232,8 +232,8 @@ func (c *Connector) updateUser(ctx context.Context, database string, user *model
                       'FETCH NEXT FROM add_role_cur INTO @role;' +
                       'WHILE @@FETCH_STATUS = 0' +
                       '  BEGIN' +
-                      '    SET @sql = ''ALTER ROLE '' + QuoteName(@role) + '' ADD MEMBER ' + QuoteName(@username) + ''';' +
-                      '    EXEC (@sql);' +
+                      '    SET @mssql = ''ALTER ROLE '' + QuoteName(@role) + '' ADD MEMBER ' + QuoteName(@username) + ''';' +
+                      '    EXEC (@mssql);' +
                       '    FETCH NEXT FROM add_role_cur INTO @role;' +
                       '  END;' +
                       'CLOSE add_role_cur;' +

@@ -87,12 +87,7 @@ func (c *Connector) QueryContext(ctx context.Context, query string, scanner func
 	}
 	defer rows.Close()
 
-	err = scanner(rows)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return scanner(rows)
 }
 
 func (c *Connector) QueryRowContext(ctx context.Context, query string, scanner func(*sql.Row) error, args ...interface{}) error {
@@ -126,20 +121,24 @@ func (c *Connector) db() (*sql.DB, error) {
 }
 
 func (c *Connector) connector() (driver.Connector, error) {
+	connectionString := c.connectionString()
+	if c.Login != nil {
+		return mssql.NewConnector(connectionString)
+	}
+	return mssql.NewAccessTokenConnector(connectionString, func() (string, error) { return c.tokenProvider() })
+}
+
+func (c *Connector) connectionString() string {
 	query := url.Values{}
 	if c.Database != "" {
 		query.Set("database", c.Database)
 	}
-	connectionString := (&url.URL{
+	return (&url.URL{
 		Scheme:   "sqlserver",
 		User:     c.userPassword(),
 		Host:     fmt.Sprintf("%s:%d", c.Host, c.Port),
 		RawQuery: query.Encode(),
 	}).String()
-	if c.Login != nil {
-		return mssql.NewConnector(connectionString)
-	}
-	return mssql.NewAccessTokenConnector(connectionString, func() (string, error) { return c.tokenProvider() })
 }
 
 func (c *Connector) userPassword() *url.Userinfo {

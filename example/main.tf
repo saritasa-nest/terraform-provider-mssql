@@ -13,4 +13,10 @@ provider "mssql" {
   port     = var.port
   username = var.user
   password = var.password
+
+#  timeouts = {
+#    create = "5m"
+#    read = "30s"
+#    delete = "1m"
+#  }
 }

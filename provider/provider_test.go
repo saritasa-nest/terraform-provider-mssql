@@ -1,4 +1,4 @@
-package mssql
+package provider
 
 import (
 	"context"
@@ -33,7 +33,7 @@ var TestAccProvider *schema.Provider
 func init() {
 	TestAccProvider = Provider()
 	TestProviderFactories = map[string]func() (*schema.Provider, error){
-		"mssql": func() (*schema.Provider, error) {
+		"provider": func() (*schema.Provider, error) {
 			return Provider(), nil
 		},
 	}

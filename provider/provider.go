@@ -1,9 +1,11 @@
-package mssql
+package provider
 
 import (
 	"context"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/saritasa/terraform-provider-mssql/mssql"
+	"time"
 )
 
 func Provider() *schema.Provider {
@@ -75,13 +77,17 @@ func Provider() *schema.Provider {
 
 func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
 
-	client := &Connector{
+	timeout, err := time.ParseDuration("30s")
+	if err != nil {
+		return nil, diag.FromErr(err)
+	}
+	client := &mssql.Connector{
 		Host:     d.Get("endpoint").(string),
 		Port:     d.Get("port").(int),
 		Database: d.Get("database").(string),
-		Timeout:  d.Timeout(schema.TimeoutRead),
+		Timeout:  timeout, // d.Timeout(schema.TimeoutRead),
 
-		Login: &LoginUser{
+		Login: &mssql.LoginUser{
 			Username: d.Get("username").(string),
 			Password: d.Get("password").(string),
 		},
