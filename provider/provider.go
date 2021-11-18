@@ -66,6 +66,7 @@ func Provider() *schema.Provider {
 
 		ResourcesMap: map[string]*schema.Resource{
 			"mssql_database": ResourceDatabase(),
+			"mssql_login":    ResourceLogin(),
 			"mssql_role":     ResourceRole(),
 			"mssql_user":     ResourceUser(),
 			"mssql_sql":      ResourceSql(),
