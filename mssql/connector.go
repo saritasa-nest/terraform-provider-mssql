@@ -121,14 +121,14 @@ func (c *Connector) db() (*sql.DB, error) {
 }
 
 func (c *Connector) connector() (driver.Connector, error) {
-	connectionString := c.connectionString()
+	connectionString := c.ConnectionString()
 	if c.Login != nil {
 		return mssql.NewConnector(connectionString)
 	}
 	return mssql.NewAccessTokenConnector(connectionString, func() (string, error) { return c.tokenProvider() })
 }
 
-func (c *Connector) connectionString() string {
+func (c *Connector) ConnectionString() string {
 	query := url.Values{}
 	if c.Database != "" {
 		query.Set("database", c.Database)

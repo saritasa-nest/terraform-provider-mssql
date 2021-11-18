@@ -62,6 +62,7 @@ func ResourceUser() *schema.Resource {
 			"default_language": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Default:  "us_english",
 			},
 			"roles": {
 				Type:     schema.TypeList,
@@ -84,7 +85,7 @@ func CreateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) d
 
 	log.Println("Creating user: ", user.Username)
 
-	err := connector.createUser(ctx, connector.Database, &user)
+	err := connector.CreateUser(ctx, connector.Database, &user)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -115,14 +116,14 @@ func UpdateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) d
 		Roles:           d.Get("roles").([]string),
 	}
 
-	err := connector.updateUser(ctx, connector.Database, &user)
+	err := connector.UpdateUser(ctx, connector.Database, &user)
 	return diag.FromErr(err)
 }
 
 func ReadUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	connector := meta.(*mssql.Connector)
 
-	user, err := connector.getUser(ctx, connector.Database, d.Get("username").(string))
+	user, err := connector.GetUser(ctx, connector.Database, d.Get("username").(string))
 	diags := diag.FromErr(err)
 
 	if user != nil {
@@ -136,7 +137,7 @@ func DeleteUser(ctx context.Context, d *schema.ResourceData, meta interface{}) d
 	connector := meta.(*mssql.Connector)
 	user := model.SchemaToUser(d)
 
-	err := connector.deleteUser(ctx, connector.Database, user.Username)
+	err := connector.DeleteUser(ctx, connector.Database, user.Username)
 
 	if err == nil {
 		d.SetId("")
@@ -156,10 +157,10 @@ func ImportUser(ctx context.Context, d *schema.ResourceData, meta interface{}) (
 
 	connector := meta.(*mssql.Connector)
 	if err := connector.PingContext(ctx); err != nil {
-		return nil, fmt.Errorf("cannot connect to db '%s'", connector.connectionString())
+		return nil, fmt.Errorf("cannot connect to db '%s'", connector.ConnectionString())
 	}
 
-	user, err := connector.getUser(ctx, database, username)
+	user, err := connector.GetUser(ctx, database, username)
 	if err != nil {
 		return nil, err
 	}

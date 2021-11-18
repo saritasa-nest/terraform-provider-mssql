@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func (c *Connector) getUser(ctx context.Context, database, username string) (*model.User, error) {
+func (c *Connector) GetUser(ctx context.Context, database, username string) (*model.User, error) {
 	cmd := `DECLARE @stmt nvarchar(max)
           IF @@VERSION LIKE 'Microsoft SQL Azure%'
             BEGIN
@@ -82,7 +82,7 @@ func (c *Connector) getUser(ctx context.Context, database, username string) (*mo
 	return &user, nil
 }
 
-func (c *Connector) createUser(ctx context.Context, database string, user *model.User) error {
+func (c *Connector) CreateUser(ctx context.Context, database string, user *model.User) error {
 	cmd := `DECLARE @stmt nvarchar(max)
           DECLARE @language nvarchar(max) = @defaultLanguage
           IF @language = '' SET @language = NULL
@@ -176,7 +176,7 @@ func (c *Connector) createUser(ctx context.Context, database string, user *model
 		)
 }
 
-func (c *Connector) updateUser(ctx context.Context, database string, user *model.User) error {
+func (c *Connector) UpdateUser(ctx context.Context, database string, user *model.User) error {
 	cmd := `DECLARE @stmt nvarchar(max)
           SET @stmt = 'ALTER USER ' + QuoteName(@username) + ' '
           DECLARE @language nvarchar(max) = @defaultLanguage
@@ -250,7 +250,7 @@ func (c *Connector) updateUser(ctx context.Context, database string, user *model
 		)
 }
 
-func (c *Connector) deleteUser(ctx context.Context, database, username string) error {
+func (c *Connector) DeleteUser(ctx context.Context, database, username string) error {
 	cmd := `DECLARE @stmt nvarchar(max)
           SET @stmt = 'IF EXISTS (SELECT 1 FROM ' + QuoteName(@database) + '.[sys].[database_principals] WHERE [name] = ' + QuoteName(@username, '''') + ') ' +
                       'DROP USER ' + QuoteName(@username)

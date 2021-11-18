@@ -10,6 +10,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
+const collationProp = "default_collation"
+const nameProp = "name"
+const languageProp = "default_language"
+
 func ResourceDatabase() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: CreateDatabase,
@@ -20,22 +24,22 @@ func ResourceDatabase() *schema.Resource {
 			StateContext: ImportDatabase,
 		},
 		Schema: map[string]*schema.Schema{
-			"name": {
+			nameProp: {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
 			},
 
-			"default_character_set": {
+			languageProp: {
 				Type:     schema.TypeString,
 				Optional: true,
-				Default:  "utf8",
+				//Default:  "us_english",
 			},
 
-			"default_collation": {
+			collationProp: {
 				Type:     schema.TypeString,
 				Optional: true,
-				Default:  "utf8_general_ci",
+				//Default:  "SQL_Latin1_General_CP1_CI_AS",
 			},
 		},
 	}
@@ -54,11 +58,19 @@ func CreateDatabase(ctx context.Context, d *schema.ResourceData, meta interface{
 
 func UpdateDatabase(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	connector := meta.(*mssql.Connector)
-	if err := connector.UpdateDatabase(ctx, model.DatabaseFromSchema(d)); err != nil {
-		return diag.FromErr(err)
+	diags := diag.Diagnostics{}
+
+	database := model.DatabaseFromSchema(d)
+
+	if d.HasChange(collationProp) && database.DefaultCollation != "" {
+		smtSQL := fmt.Sprintf("ALTER DATABASE %s COLLATE %s", database.Name, database.DefaultCollation)
+		err := connector.ExecContext(ctx, smtSQL)
+		if err != nil {
+			diags = diag.FromErr(err)
+		}
 	}
 
-	return ReadDatabase(ctx, d, meta)
+	return diags
 }
 
 func ReadDatabase(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

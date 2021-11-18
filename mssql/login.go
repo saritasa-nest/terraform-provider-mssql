@@ -11,7 +11,7 @@ func (c *Connector) GetLogin(ctx context.Context, name string) (*model.Login, er
 	err := c.QueryRowContext(ctx,
 		"SELECT principal_id, name, default_database_name, default_language_name FROM [master].[sys].[sql_logins] WHERE [name] = @name",
 		func(r *sql.Row) error {
-			return r.Scan(&login.PrincipalID, &login.LoginName, &login.DefaultDatabase, &login.DefaultLanguage)
+			return r.Scan(&login.PrincipalID, &login.Name, &login.DefaultDatabase, &login.DefaultLanguage)
 		},
 		sql.Named("name", name),
 	)
