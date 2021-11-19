@@ -1,10 +1,13 @@
 resource "mssql_database" "mydb" {
   name = "mydb"
+  options = {
+    default_language = "us_english"
+  }
 }
 
 output "mydb" {
   value = {
     name = mssql_database.mydb.name
-    default_language = mssql_database.mydb.default_language
+    options = mssql_database.mydb.options
   }
 }

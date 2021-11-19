@@ -7,17 +7,15 @@ import (
 
 type Database struct {
 	Name             string
-	DefaultLanguage  string
 	DefaultCollation string
+	Options          OptionsList
 }
 
-func DatabaseFromSchema(data *schema.ResourceData) *Database {
-	database := &Database{
-		Name:             data.Get("name").(string),
-		DefaultLanguage:  data.Get("default_language").(string),
-		DefaultCollation: data.Get("default_collation").(string),
-	}
-	return database
+func (d *Database) Parse(data *schema.ResourceData) *Database {
+	d.Name = data.Get("name").(string)
+	d.DefaultCollation = data.Get("default_collation").(string)
+	d.Options = make(OptionsList)
+	return d
 }
 
 func (database *Database) ToSchema(d *schema.ResourceData) diag.Diagnostics {
@@ -27,7 +25,7 @@ func (database *Database) ToSchema(d *schema.ResourceData) diag.Diagnostics {
 		diags = append(diags, diag.FromErr(err)[0])
 	}
 
-	err = d.Set("default_language", database.DefaultLanguage)
+	err = d.Set("options", database.Options)
 	if err != nil {
 		diags = append(diags, diag.FromErr(err)[0])
 	}

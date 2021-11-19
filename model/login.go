@@ -6,20 +6,16 @@ import (
 )
 
 type Login struct {
-	Name            string
-	DefaultDatabase string
-	DefaultLanguage string
-	Password        string
+	Name     string
+	Password string
+	Options  OptionsList
 }
 
-func LoginFromSchema(data *schema.ResourceData) *Login {
-	database := &Login{
-		Name:            data.Get("name").(string),
-		DefaultDatabase: data.Get("default_database").(string),
-		DefaultLanguage: data.Get("default_language").(string),
-		Password:        data.Get("password").(string),
-	}
-	return database
+func (login *Login) Parse(data *schema.ResourceData) *Login {
+	login.Name = data.Get("name").(string)
+	login.Password = data.Get("password").(string)
+	login.Options = make(OptionsList).Parse(data.Get("options").(map[string]interface{}))
+	return login
 }
 
 func (login *Login) ToSchema(d *schema.ResourceData) diag.Diagnostics {
@@ -29,12 +25,7 @@ func (login *Login) ToSchema(d *schema.ResourceData) diag.Diagnostics {
 		diags = append(diags, diag.FromErr(err)[0])
 	}
 
-	err = d.Set("default_language", login.DefaultLanguage)
-	if err != nil {
-		diags = append(diags, diag.FromErr(err)[0])
-	}
-
-	err = d.Set("default_database", login.DefaultDatabase)
+	err = d.Set("options", login.Options)
 	if err != nil {
 		diags = append(diags, diag.FromErr(err)[0])
 	}

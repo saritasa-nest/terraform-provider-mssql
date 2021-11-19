@@ -29,16 +29,14 @@ func ResourceLogin() *schema.Resource {
 				ForceNew: true,
 			},
 			"password": {
-				Type:     schema.TypeString,
-				Optional: true,
+				Type:      schema.TypeString,
+				Optional:  true,
+				Sensitive: true,
 			},
-			"default_database": {
-				Type:     schema.TypeString,
+			"options": {
+				Type:     schema.TypeMap,
 				Optional: true,
-			},
-			"default_language": {
-				Type:     schema.TypeString,
-				Optional: true,
+				Elem:     schema.TypeString,
 			},
 		},
 	}
@@ -46,18 +44,20 @@ func ResourceLogin() *schema.Resource {
 
 func CreateLogin(ctx context.Context, data *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	connector := meta.(*mssql.Connector)
-	login := model.LoginFromSchema(data)
+	login := new(model.Login).Parse(data)
 	stmtSQL := "CREATE LOGIN [" + login.Name + "]"
-	if login.Password+login.DefaultDatabase+login.DefaultLanguage != "" {
+	if login.Password != "" || len(login.Options) > 0 {
 		stmtSQL += " WITH "
 		if login.Password != "" {
 			stmtSQL += fmt.Sprintf(" PASSWORD = '%s', ", login.Password)
 		}
-		if login.DefaultDatabase != "" {
-			stmtSQL += fmt.Sprintf(" DEFAULT_DATABASE = %s,", login.DefaultDatabase)
-		}
-		if login.DefaultLanguage != "" {
-			stmtSQL += fmt.Sprintf(" DEFAULT_DATABASE = %s,", login.DefaultLanguage)
+		for opt := range login.Options {
+			var value string
+			if login.Options[opt] == "" {
+				value = "NULL"
+			}
+			stmtSQL += fmt.Sprintf(" %s = %s,", opt, value)
+
 		}
 		stmtSQL = strings.TrimRight(stmtSQL, ",")
 	}
@@ -73,37 +73,49 @@ func CreateLogin(ctx context.Context, data *schema.ResourceData, meta interface{
 func ReadLogin(ctx context.Context, data *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	connector := meta.(*mssql.Connector)
 	var login model.Login
+	var defaultDatabase, defaultLanguage model.NullString
 	err := connector.QueryRowContext(ctx,
 		"SELECT name, default_database_name, default_language_name FROM [master].[sys].[sql_logins] WHERE [name] = @name",
 		func(r *sql.Row) error {
-			return r.Scan(&login.Name, &login.DefaultDatabase, &login.DefaultLanguage)
+			return r.Scan(&login.Name, &defaultDatabase, &defaultLanguage)
 		},
-		sql.Named("name", data.Get("Name")),
+		sql.Named("name", data.Get("name")),
 	)
 	if err != nil {
 		return diag.FromErr(err)
 	}
+
+	if defaultDatabase != "" {
+		login.Options["default_database"] = defaultDatabase
+	}
+	if defaultLanguage != "" {
+		login.Options["default_language"] = defaultLanguage
+	}
+
 	return login.ToSchema(data)
 }
 
 func UpdateLogin(ctx context.Context, data *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	connector := meta.(*mssql.Connector)
-	login := model.LoginFromSchema(data)
+	login := new(model.Login).Parse(data)
 	diags := diag.Diagnostics{}
 
-	if data.HasChange("default_database") {
-		stmtSQL := fmt.Sprintf("ALTER LOGIN [%s] WITH DEFAULT_DATABASE %s", login.Name, login.DefaultDatabase)
-		err := connector.ExecContext(ctx, stmtSQL)
-		if err != nil {
-			diags = append(diags, diag.FromErr(err)[0])
-		}
-	}
-
-	if data.HasChange("default_language") {
-		stmtSQL := fmt.Sprintf("ALTER LOGIN [%s] WITH DEFAULT_LANGUAGE %s", login.Name, login.DefaultLanguage)
-		err := connector.ExecContext(ctx, stmtSQL)
-		if err != nil {
-			diags = append(diags, diag.FromErr(err)[0])
+	if data.HasChange("options") {
+		diags = append(diags, diag.Diagnostic{
+			Severity: diag.Warning,
+			Summary:  "MSSQL Login updates may not function properly, especially remove",
+			Detail:   "MSSQL options update is not versatile, may not detect and apply correctly",
+		})
+		for opt := range login.Options {
+			value := login.Options[opt].ValueOrSqlNull()
+			stmtSQL := fmt.Sprintf("ALTER LOGIN [%s] WITH %s = %s", login.Name, opt, value)
+			err := connector.ExecContext(ctx, stmtSQL)
+			if err != nil {
+				diags = append(diags, diag.Diagnostic{
+					Summary: fmt.Sprintf("MSSQL login %s option '%s' update", login.Name, opt),
+					Detail:  err.Error(),
+				})
+			}
 		}
 	}
 
@@ -112,7 +124,7 @@ func UpdateLogin(ctx context.Context, data *schema.ResourceData, meta interface{
 
 func DeleteLogin(ctx context.Context, data *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	connector := meta.(*mssql.Connector)
-	name := data.Get("Name").(string)
+	name := data.Id()
 
 	err := killSessionsForLogin(connector, ctx, name)
 	if err != nil {
@@ -121,6 +133,10 @@ func DeleteLogin(ctx context.Context, data *schema.ResourceData, meta interface{
 
 	stmtSQL := fmt.Sprintf("IF EXISTS (SELECT 1 FROM [master].[sys].[sql_logins] WHERE [name] = '%s') DROP LOGIN [%s]", name, name)
 	err = connector.ExecContext(ctx, stmtSQL)
+	if err == nil {
+		data.SetId("")
+	}
+
 	return diag.FromErr(err)
 }
 
@@ -134,7 +150,8 @@ func ImportLogin(ctx context.Context, data *schema.ResourceData, meta interface{
 }
 
 func killSessionsForLogin(c *mssql.Connector, ctx context.Context, name string) error {
-	cmd := `-- adapted from https://stackoverflow.com/a/5178097/38055
+	// adapted from https://stackoverflow.com/a/5178097/38055
+	cmd := ` 
           DECLARE sessionsToKill CURSOR FAST_FORWARD FOR
             SELECT session_id
             FROM sys.dm_exec_sessions

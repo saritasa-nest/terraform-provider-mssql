@@ -1,4 +1,4 @@
-package mssql
+package model
 
 import (
 	"database/sql/driver"
@@ -7,6 +7,7 @@ import (
 
 type NullString string
 
+// Scan implements sql.Scanner interface
 func (s *NullString) Scan(value interface{}) error {
 	if value == nil {
 		*s = ""
@@ -20,9 +21,23 @@ func (s *NullString) Scan(value interface{}) error {
 	return nil
 }
 
+// Value implements driver.Valuer interface
 func (s NullString) Value() (driver.Value, error) {
 	if len(s) == 0 { // if nil or empty string
 		return nil, nil
 	}
 	return string(s), nil
+}
+
+// ToString Get underlying string value
+func (s NullString) ToString() string {
+	return string(s)
+}
+
+// ValueOrSqlNull if value is empty, return string = "NULL" (for building queries)
+func (s NullString) ValueOrSqlNull() string {
+	if len(s) == 0 {
+		return "NULL"
+	}
+	return string(s)
 }
