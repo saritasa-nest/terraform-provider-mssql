@@ -81,7 +81,7 @@ func CreateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) d
 		return diag.FromErr(err)
 	}
 
-	user := model.SchemaToUser(d)
+	user := model.UserFromSchema(d)
 
 	log.Println("Creating user: ", user.Username)
 
@@ -135,7 +135,7 @@ func ReadUser(ctx context.Context, d *schema.ResourceData, meta interface{}) dia
 
 func DeleteUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	connector := meta.(*mssql.Connector)
-	user := model.SchemaToUser(d)
+	user := model.UserFromSchema(d)
 
 	err := connector.DeleteUser(ctx, connector.Database, user.Username)
 

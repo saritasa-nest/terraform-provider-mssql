@@ -17,7 +17,7 @@ type User struct {
 	Roles           []string
 }
 
-func SchemaToUser(d *schema.ResourceData) User {
+func UserFromSchema(d *schema.ResourceData) User {
 	user := User{
 		PrincipalID:     int64(d.Get("principal_id").(int)),
 		Username:        d.Get("username").(string),

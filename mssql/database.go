@@ -19,11 +19,14 @@ func (c *Connector) ReadDatabase(ctx context.Context, d *model.Database) error {
 	stmtSQL := "SELECT name, collation_name FROM sys.databases WHERE name LIKE '" + d.Name + "'"
 
 	log.Println("Executing statement:", stmtSQL)
+	var collation NullString
 	err := c.QueryRowContext(ctx, stmtSQL, func(row *sql.Row) error {
-		return row.Scan(&d.Name, &d.DefaultCollation)
+		return row.Scan(&d.Name, &collation)
 	})
 	if err != nil {
 		return fmt.Errorf("read database info: %s", err)
+	} else {
+		d.DefaultCollation = fmt.Sprintf("%s", collation)
 	}
 
 	return nil

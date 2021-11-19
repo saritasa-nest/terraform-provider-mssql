@@ -13,7 +13,7 @@ type Database struct {
 
 func DatabaseFromSchema(data *schema.ResourceData) *Database {
 	database := &Database{
-		Name:             data.Get("Name").(string),
+		Name:             data.Get("name").(string),
 		DefaultLanguage:  data.Get("default_language").(string),
 		DefaultCollation: data.Get("default_collation").(string),
 	}
