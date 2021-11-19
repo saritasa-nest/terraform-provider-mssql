@@ -4,12 +4,11 @@ import (
 	"context"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/saritasa/terraform-provider-mssql/model"
 	"github.com/saritasa/terraform-provider-mssql/mssql"
+	"github.com/thoas/go-funk"
 	"log"
-	"strings"
-
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func ResourceUser() *schema.Resource {
@@ -34,10 +33,11 @@ func ResourceUser() *schema.Resource {
 				ForceNew: true,
 			},
 			"password": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Sensitive:   true,
-				Description: "User password",
+				Type:          schema.TypeString,
+				Optional:      true,
+				Sensitive:     true,
+				Description:   "User password",
+				ConflictsWith: []string{"login_name"},
 			},
 			"login_name": {
 				Type:          schema.TypeString,
@@ -67,7 +67,7 @@ func ResourceUser() *schema.Resource {
 				Default:  "DATABASE",
 				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
 					allowedValues := []string{"DATABASE", "INSTANCE", "EXTERNAL"}
-					if !model.InArray(val.(string), allowedValues) {
+					if !funk.ContainsString(allowedValues, val.(string)) {
 						errs = append(errs, fmt.Errorf("auth_type must be one of: %s", allowedValues))
 					}
 					return
@@ -89,18 +89,17 @@ func ResourceUser() *schema.Resource {
 	}
 }
 
-func CreateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func CreateUser(ctx context.Context, data *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	connector := meta.(*mssql.Connector)
-	user := new(model.User).Parse(d)
+	user := new(model.User).Parse(data)
 
-	userId := fmt.Sprintf("%s/%s", user.Database, user.Username)
-
-	err := connector.CreateUser1(ctx, user)
+	err := connector.CreateUser(ctx, user)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	d.SetId(userId)
+	userId := fmt.Sprintf("%s/%s", user.Database, user.Username)
+	data.SetId(userId)
 
 	return nil
 }
@@ -118,13 +117,14 @@ func UpdateUser(ctx context.Context, data *schema.ResourceData, meta interface{}
 
 func ReadUser(ctx context.Context, data *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	connector := meta.(*mssql.Connector)
+	database, username, err := mssql.ParseUserId(data.Id())
 
-	user, err := connector.GetUser(ctx, connector.Database, data.Get("username").(string))
+	user, err := connector.GetUser(ctx, database, username)
 	diags := diag.FromErr(err)
 
 	if user != nil {
-		data.SetId(fmt.Sprintf("%s/%s", connector.Database, user.Username))
-		diags = user.ToSchema(data)
+		data.SetId(fmt.Sprintf("%s/%s", user.Database, user.Username))
+		diags = append(diags, user.ToSchema(data)...)
 	}
 	return diags
 }
@@ -145,14 +145,7 @@ func DeleteUser(ctx context.Context, d *schema.ResourceData, meta interface{}) d
 }
 
 func ImportUser(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
-	lastSeparatorIndex := strings.LastIndex(d.Id(), "/")
-
-	if lastSeparatorIndex <= 0 {
-		return nil, fmt.Errorf("wrong ID format %s (expected database/username)", d.Id())
-	}
-
-	username := d.Id()[0:lastSeparatorIndex]
-	database := d.Id()[lastSeparatorIndex+1:]
+	database, username, err := mssql.ParseUserId(d.Id())
 
 	connector := meta.(*mssql.Connector)
 	user, err := connector.GetUser(ctx, database, username)
