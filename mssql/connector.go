@@ -36,11 +36,11 @@ type AzureLogin struct {
 	ClientSecret string `json:"client_secret,omitempty"`
 }
 
-func (c *Connector) setDatabase(database *string) *Connector {
-	if *database == "" {
-		*database = "master"
+func (c *Connector) setDatabase(database string) *Connector {
+	c.Database = database
+	if database == "" {
+		c.Database = "master"
 	}
-	c.Database = *database
 	return c
 }
 

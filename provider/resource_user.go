@@ -23,46 +23,60 @@ func ResourceUser() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
+			"database": {
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: "In which database this user will be created",
+			},
 			"username": {
 				Type:     schema.TypeString,
 				Required: true,
 				ForceNew: true,
 			},
-
 			"password": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Sensitive:   true,
 				Description: "User password",
 			},
+			"login_name": {
+				Type:          schema.TypeString,
+				Optional:      true,
+				ForceNew:      true,
+				Description:   "Create user for existing [login] from 'master' database or Windows login name",
+				ConflictsWith: []string{"object_id", "principal_id"},
+			},
 
 			"object_id": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				ForceNew:    true,
-				Description: "External object ID",
+				Type:          schema.TypeString,
+				Optional:      true,
+				ForceNew:      true,
+				Description:   "External object ID",
+				ConflictsWith: []string{"login_name", "principal_id"},
 			},
 			"principal_id": {
-				Type:     schema.TypeInt,
-				Optional: true,
-			},
-			"login_name": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "User login",
+				Type:          schema.TypeInt,
+				Optional:      true,
+				ForceNew:      true,
+				Description:   "Create user for existing [Principal ID] from 'master' database",
+				ConflictsWith: []string{"object_id", "login_name"},
 			},
 			"auth_type": {
 				Type:     schema.TypeString,
 				Optional: true,
+				Default:  "DATABASE",
+				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
+					allowedValues := []string{"DATABASE", "INSTANCE", "EXTERNAL"}
+					if !model.InArray(val.(string), allowedValues) {
+						errs = append(errs, fmt.Errorf("auth_type must be one of: %s", allowedValues))
+					}
+					return
+				},
 			},
-			"default_schema": {
-				Type:     schema.TypeString,
+			"options": {
+				Type:     schema.TypeMap,
 				Optional: true,
-			},
-			"default_language": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Default:  "us_english",
+				Elem:     schema.TypeString,
 			},
 			"roles": {
 				Type:     schema.TypeList,
@@ -77,68 +91,53 @@ func ResourceUser() *schema.Resource {
 
 func CreateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	connector := meta.(*mssql.Connector)
-	if err := connector.PingContext(ctx); err != nil {
-		return diag.FromErr(err)
-	}
+	user := new(model.User).Parse(d)
 
-	user := model.UserFromSchema(d)
+	userId := fmt.Sprintf("%s/%s", user.Database, user.Username)
 
-	log.Println("Creating user: ", user.Username)
-
-	err := connector.CreateUser(ctx, connector.Database, &user)
+	err := connector.CreateUser1(ctx, user)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	log.Println("User created: ", user.Username)
-
-	userId := fmt.Sprintf("%s/%s", connector.Database, user.Username)
 	d.SetId(userId)
 
-	return diag.Diagnostics{}
+	return nil
 }
 
-func UpdateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func UpdateUser(ctx context.Context, data *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	connector := meta.(*mssql.Connector)
 	if err := connector.PingContext(ctx); err != nil {
 		return diag.FromErr(err)
 	}
+	user := new(model.User).Parse(data)
 
-	user := model.User{
-		PrincipalID:     int64(d.Get("principal_id").(int)),
-		Username:        d.Get("username").(string),
-		ObjectId:        d.Get("object_id").(string),
-		LoginName:       d.Get("login_name").(string),
-		Password:        d.Get("password").(string),
-		AuthType:        d.Get("auth_type").(string),
-		DefaultSchema:   d.Get("default_schema").(string),
-		DefaultLanguage: d.Get("default_language").(string),
-		Roles:           d.Get("roles").([]string),
-	}
-
-	err := connector.UpdateUser(ctx, connector.Database, &user)
+	err := connector.UpdateUser(ctx, connector.Database, user)
 	return diag.FromErr(err)
 }
 
-func ReadUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func ReadUser(ctx context.Context, data *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	connector := meta.(*mssql.Connector)
 
-	user, err := connector.GetUser(ctx, connector.Database, d.Get("username").(string))
+	user, err := connector.GetUser(ctx, connector.Database, data.Get("username").(string))
 	diags := diag.FromErr(err)
 
 	if user != nil {
-		d.SetId(fmt.Sprintf("%s/%s", connector.Database, user.Username))
-		diags = user.ToSchema(d)
+		data.SetId(fmt.Sprintf("%s/%s", connector.Database, user.Username))
+		diags = user.ToSchema(data)
 	}
 	return diags
 }
 
 func DeleteUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	connector := meta.(*mssql.Connector)
-	user := model.UserFromSchema(d)
+	user := new(model.User).Parse(d)
 
-	err := connector.DeleteUser(ctx, connector.Database, user.Username)
+	stmtSQL := fmt.Sprintf("IF EXISTS (SELECT 1 FROM [%s].[sys].[database_principals] WHERE [name] = '%s') "+
+		"DROP USER %s", user.Database, user.Username, user.Username)
 
+	log.Printf("Executing statement: %s", stmtSQL)
+	err := connector.ExecContext(ctx, stmtSQL)
 	if err == nil {
 		d.SetId("")
 	}
@@ -156,10 +155,6 @@ func ImportUser(ctx context.Context, d *schema.ResourceData, meta interface{}) (
 	database := d.Id()[lastSeparatorIndex+1:]
 
 	connector := meta.(*mssql.Connector)
-	if err := connector.PingContext(ctx); err != nil {
-		return nil, fmt.Errorf("cannot connect to db '%s'", connector.ConnectionString())
-	}
-
 	user, err := connector.GetUser(ctx, database, username)
 	if err != nil {
 		return nil, err

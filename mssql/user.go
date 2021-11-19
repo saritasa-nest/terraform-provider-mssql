@@ -46,11 +46,12 @@ func (c *Connector) GetUser(ctx context.Context, database, username string) (*mo
 		sid   []byte
 		roles string
 	)
+	var schema, language string
 	err := c.
-		setDatabase(&database).
+		setDatabase(database).
 		QueryRowContext(ctx, cmd,
 			func(r *sql.Row) error {
-				return r.Scan(&user.PrincipalID, &user.Username, &user.AuthType, &user.DefaultSchema, &user.DefaultLanguage, &sid, &user.LoginName, &roles)
+				return r.Scan(&user.PrincipalID, &user.Username, &user.AuthType, &schema, &language, &sid, &user.LoginName, &roles)
 			},
 			sql.Named("database", database),
 			sql.Named("username", username),
@@ -162,16 +163,16 @@ func (c *Connector) CreateUser(ctx context.Context, database string, user *model
                       'DEALLOCATE role_cur;'
           EXEC (@stmt)`
 	return c.
-		setDatabase(&database).
+		setDatabase(user.Database).
 		ExecContext(ctx, cmd,
-			sql.Named("database", database),
+			sql.Named("database", user.Database),
 			sql.Named("username", user.Username),
 			sql.Named("objectId", user.ObjectId),
 			sql.Named("loginName", user.LoginName),
 			sql.Named("password", user.Password),
 			sql.Named("authType", user.AuthType),
-			sql.Named("defaultSchema", user.DefaultSchema),
-			sql.Named("defaultLanguage", user.DefaultLanguage),
+			sql.Named("defaultSchema", "dbo"),
+			sql.Named("defaultLanguage", "NONE"),
 			sql.Named("roles", strings.Join(user.Roles, ",")),
 		)
 }
@@ -240,22 +241,12 @@ func (c *Connector) UpdateUser(ctx context.Context, database string, user *model
                       'DEALLOCATE add_role_cur;'
           EXEC (@stmt)`
 	return c.
-		setDatabase(&database).
+		setDatabase(user.Database).
 		ExecContext(ctx, cmd,
-			sql.Named("database", database),
+			sql.Named("database", user.Database),
 			sql.Named("username", user.Username),
-			sql.Named("defaultSchema", user.DefaultSchema),
-			sql.Named("defaultLanguage", user.DefaultLanguage),
+			sql.Named("defaultSchema", "dbo"),
+			sql.Named("defaultLanguage", "NONE"),
 			sql.Named("roles", strings.Join(user.Roles, ",")),
 		)
-}
-
-func (c *Connector) DeleteUser(ctx context.Context, database, username string) error {
-	cmd := `DECLARE @stmt nvarchar(max)
-          SET @stmt = 'IF EXISTS (SELECT 1 FROM ' + QuoteName(@database) + '.[sys].[database_principals] WHERE [name] = ' + QuoteName(@username, '''') + ') ' +
-                      'DROP USER ' + QuoteName(@username)
-          EXEC (@stmt)`
-	return c.
-		setDatabase(&database).
-		ExecContext(ctx, cmd, sql.Named("database", database), sql.Named("username", username))
 }

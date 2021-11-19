@@ -1,6 +1,8 @@
-resource "mssql_user" "demo_user1" {
-  username = "demo_user1"
-  password = "123456"
+resource "mssql_user" "user" {
+  database = mssql_database.mydb.id
+
+  username = "demo_user"
+  login_name = "demo_login"
 }
 
 
