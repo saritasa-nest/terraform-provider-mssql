@@ -42,6 +42,8 @@ func CreateRole(ctx context.Context, d *schema.ResourceData, meta interface{}) d
 func ReadRole(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	connector := meta.(*mssql.Connector)
 
+	// SELECT name FROM [master].[sys].database_principals WHERE type = 'R'
+
 	stmtSQL := fmt.Sprintf("SHOW GRANTS FOR '%s'", d.Id())
 
 	err := connector.QueryContext(ctx, stmtSQL, func(rows *sql.Rows) error {

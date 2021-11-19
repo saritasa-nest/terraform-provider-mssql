@@ -73,9 +73,10 @@ func UpdateDatabase(ctx context.Context, data *schema.ResourceData, meta interfa
 
 	database := new(model.Database).Parse(data)
 
-	if data.HasChange("default_collation") && database.DefaultCollation != "" {
-		smtSQL := fmt.Sprintf("ALTER DATABASE %s COLLATE %s", database.Name, database.DefaultCollation)
-		err := connector.ExecContext(ctx, smtSQL)
+	if data.HasChanges("default_collation") && database.DefaultCollation != "" {
+		stmtSQL := fmt.Sprintf("ALTER DATABASE %s COLLATE %s", database.Name, database.DefaultCollation)
+		//diags = append(diags, diag.Diagnostic{Severity: diag.Warning, Summary: stmtSQL})
+		err := connector.ExecContext(ctx, stmtSQL)
 		if err != nil {
 			diags = diag.FromErr(err)
 		}
@@ -84,12 +85,20 @@ func UpdateDatabase(ctx context.Context, data *schema.ResourceData, meta interfa
 	if data.HasChange("options") {
 		diags = append(diags, diag.Diagnostic{
 			Severity: diag.Warning,
-			Summary:  "MSSQL database updates may not function properly, especially options remove",
-			Detail:   "MSSQL options update is not versatile, may not detect and apply correctly",
+			Summary:  "MSSQL database updates is not versatile",
+			Detail:   "options updates may not detect and apply correctly",
 		})
+		old, now := data.GetChange("options")
+		diags = append(diags, diag.Diagnostic{
+			Severity: diag.Warning,
+			Summary:  fmt.Sprintf("old options = %v", old),
+			Detail:   fmt.Sprintf("new options = %v", now),
+		})
+
 		for opt := range database.Options {
 			value := database.Options[opt].ValueOrSqlNull()
 			stmtSQL := fmt.Sprintf("ALTER DATABASE [%s] WITH %s = %s", database.Name, opt, value)
+			log.Println("Executing statement:", stmtSQL)
 			err := connector.ExecContext(ctx, stmtSQL)
 			if err != nil {
 				diags = append(diags, diag.Diagnostic{
@@ -99,6 +108,9 @@ func UpdateDatabase(ctx context.Context, data *schema.ResourceData, meta interfa
 			}
 		}
 	}
+	if !diags.HasError() {
+		database.ToSchema(data)
+	}
 
 	return diags
 }
@@ -106,26 +118,26 @@ func UpdateDatabase(ctx context.Context, data *schema.ResourceData, meta interfa
 func ReadDatabase(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	connector := meta.(*mssql.Connector)
 	database := new(model.Database).Parse(d)
-	dbName := d.Id()
 
 	stmtSQL := "SELECT name, collation_name FROM sys.databases WHERE name LIKE '" + d.Id() + "'"
 
 	log.Println("Executing statement:", stmtSQL)
 	var collation model.NullString
 	err := connector.QueryRowContext(ctx, stmtSQL, func(row *sql.Row) error {
-		return row.Scan(&dbName, &collation)
+		return row.Scan(&database.Name, &collation)
 	})
 	if err != nil {
 		return diag.Diagnostics{diag.Diagnostic{
-			Summary: fmt.Sprintf("read database %s info: %s", dbName, err.Error()),
+			Summary: fmt.Sprintf("read database %s info", d.Id()),
+			Detail:  err.Error(),
 		}}
 	} else {
-		err = d.Set("default_collation", collation.ToString())
+		_, ok := d.GetOk("default_collation")
+		if ok {
+			database.DefaultCollation = collation.ToString()
+		}
 	}
 
-	if err != nil {
-		return diag.FromErr(err)
-	}
 	return database.ToSchema(d)
 }
 

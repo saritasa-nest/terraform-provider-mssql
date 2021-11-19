@@ -18,19 +18,19 @@ func (d *Database) Parse(data *schema.ResourceData) *Database {
 	return d
 }
 
-func (database *Database) ToSchema(d *schema.ResourceData) diag.Diagnostics {
+func (d *Database) ToSchema(data *schema.ResourceData) diag.Diagnostics {
 	diags := diag.Diagnostics{}
-	err := d.Set("Name", database.Name)
+	err := data.Set("name", d.Name)
 	if err != nil {
 		diags = append(diags, diag.FromErr(err)[0])
 	}
 
-	err = d.Set("options", database.Options)
+	err = data.Set("options", d.Options)
 	if err != nil {
 		diags = append(diags, diag.FromErr(err)[0])
 	}
 
-	err = d.Set("default_collation", database.DefaultCollation)
+	err = data.Set("default_collation", d.DefaultCollation)
 	if err != nil {
 		diags = append(diags, diag.FromErr(err)[0])
 	}
