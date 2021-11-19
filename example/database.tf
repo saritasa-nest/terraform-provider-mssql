@@ -7,8 +7,5 @@ resource "mssql_database" "mydb" {
 }
 
 output "mydb" {
-  value = {
-    name = mssql_database.mydb.name
-    options = mssql_database.mydb.options
-  }
+  value = mssql_database.mydb
 }

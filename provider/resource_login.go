@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/saritasa/terraform-provider-mssql/model"
 	"github.com/saritasa/terraform-provider-mssql/mssql"
+	"log"
 	"strings"
 )
 
@@ -52,16 +53,14 @@ func CreateLogin(ctx context.Context, data *schema.ResourceData, meta interface{
 			stmtSQL += fmt.Sprintf(" PASSWORD = '%s', ", login.Password)
 		}
 		for opt := range login.Options {
-			var value string
-			if login.Options[opt] == "" {
-				value = "NULL"
-			}
+			value := login.Options[opt].ValueOrSqlNull()
+			log.Printf("option '%s' = '%s'", opt, value)
 			stmtSQL += fmt.Sprintf(" %s = %s,", opt, value)
-
 		}
 		stmtSQL = strings.TrimRight(stmtSQL, ",")
 	}
 
+	log.Printf("Executing statement: %s", stmtSQL)
 	err := connector.ExecContext(ctx, stmtSQL)
 	if err == nil {
 		data.SetId(login.Name)
@@ -72,23 +71,29 @@ func CreateLogin(ctx context.Context, data *schema.ResourceData, meta interface{
 
 func ReadLogin(ctx context.Context, data *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	connector := meta.(*mssql.Connector)
-	var login model.Login
+	login := new(model.Login).Parse(data)
+
 	var defaultDatabase, defaultLanguage model.NullString
 	err := connector.QueryRowContext(ctx,
 		"SELECT name, default_database_name, default_language_name FROM [master].[sys].[sql_logins] WHERE [name] = @name",
 		func(r *sql.Row) error {
 			return r.Scan(&login.Name, &defaultDatabase, &defaultLanguage)
 		},
-		sql.Named("name", data.Get("name")),
+		sql.Named("name", data.Id()),
 	)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	if defaultDatabase != "" {
+	_, ok := data.GetOk("default_database")
+	if ok && defaultDatabase != "" {
+		// If DEFAULT_DATABASE option defined explicitly, then import it, otherwise, skip
 		login.Options["default_database"] = defaultDatabase
 	}
-	if defaultLanguage != "" {
+
+	_, ok = data.GetOk("default_language")
+	if ok && defaultLanguage != "" {
+		// If DEFAULT_LANGUAGE option defined explicitly, then import it, otherwise, skip
 		login.Options["default_language"] = defaultLanguage
 	}
 
@@ -103,12 +108,20 @@ func UpdateLogin(ctx context.Context, data *schema.ResourceData, meta interface{
 	if data.HasChange("options") {
 		diags = append(diags, diag.Diagnostic{
 			Severity: diag.Warning,
-			Summary:  "MSSQL Login updates may not function properly, especially remove",
-			Detail:   "MSSQL options update is not versatile, may not detect and apply correctly",
+			Summary:  "MSSQL login updates is not versatile",
+			Detail:   "options updates may not detect and apply correctly, especially option remove",
 		})
+		//old, now := data.GetChange("options")
+		//diags = append(diags, diag.Diagnostic{
+		//	Severity: diag.Warning,
+		//	Summary:  fmt.Sprintf("old options = %v", old),
+		//	Detail:   fmt.Sprintf("new options = %v", now),
+		//})
+
 		for opt := range login.Options {
 			value := login.Options[opt].ValueOrSqlNull()
 			stmtSQL := fmt.Sprintf("ALTER LOGIN [%s] WITH %s = %s", login.Name, opt, value)
+			log.Printf("Executing stagement: %s", stmtSQL)
 			err := connector.ExecContext(ctx, stmtSQL)
 			if err != nil {
 				diags = append(diags, diag.Diagnostic{
