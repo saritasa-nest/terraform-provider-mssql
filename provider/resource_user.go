@@ -8,7 +8,6 @@ import (
 	"github.com/saritasa/terraform-provider-mssql/model"
 	"github.com/saritasa/terraform-provider-mssql/mssql"
 	"github.com/thoas/go-funk"
-	"log"
 )
 
 func ResourceUser() *schema.Resource {
@@ -133,11 +132,7 @@ func DeleteUser(ctx context.Context, d *schema.ResourceData, meta interface{}) d
 	connector := meta.(*mssql.Connector)
 	user := new(model.User).Parse(d)
 
-	stmtSQL := fmt.Sprintf("IF EXISTS (SELECT 1 FROM [%s].[sys].[database_principals] WHERE [name] = '%s') "+
-		"DROP USER %s", user.Database, user.Username, user.Username)
-
-	log.Printf("Executing statement: %s", stmtSQL)
-	err := connector.ExecContext(ctx, stmtSQL)
+	err := connector.DeleteUser(ctx, user)
 	if err == nil {
 		d.SetId("")
 	}

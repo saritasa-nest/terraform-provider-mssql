@@ -57,6 +57,16 @@ func (c *Connector) CreateUser(ctx context.Context, user *model.User) error {
 	return err
 }
 
+func (c *Connector) DeleteUser(ctx context.Context, user *model.User) error {
+	stmtSQL := fmt.Sprintf("IF EXISTS (SELECT 1 FROM [%s].[sys].[database_principals] WHERE [name] = '%s') "+
+		"DROP USER %s", user.Database, user.Username, user.Username)
+
+	log.Printf("Executing statement: %s", stmtSQL)
+
+	return c.setDatabase(user.Database).
+		ExecContext(ctx, stmtSQL)
+}
+
 func (c *Connector) GetUserRoles(ctx context.Context, username string) ([]string, error) {
 	roles := make([]string, 0)
 	err := c.QueryContext(ctx, `select r.name

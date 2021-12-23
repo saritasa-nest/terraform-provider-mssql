@@ -16,6 +16,7 @@ output "demo_user" {
 # EXEC sp_configure 'CONTAINED DATABASE AUTHENTICATION', 1
 # to check:
 # EXEC sp_configure 'CONTAINED DATABASE AUTHENTICATION'
+# See: https://stackoverflow.com/questions/20030612/you-can-only-create-a-user-with-a-password-in-a-contained-database
 resource "mssql_user" "user_with_password" {
   database = mssql_database.mydb.id
 
