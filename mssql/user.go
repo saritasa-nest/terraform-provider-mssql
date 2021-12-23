@@ -49,6 +49,7 @@ func (c *Connector) CreateUser(ctx context.Context, user *model.User) error {
 		stmtSQL = strings.TrimRight(stmtSQL, ", ")
 	}
 
+	log.Printf("Using database: '%s'", user.Database)
 	log.Printf("Executing statement: %s", stmtSQL)
 	err = c.
 		setDatabase(user.Database).
