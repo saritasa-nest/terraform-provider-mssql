@@ -42,4 +42,4 @@ require (
 	google.golang.org/grpc v1.42.0 // indirect
 )
 
-go 1.13
+go 1.16
