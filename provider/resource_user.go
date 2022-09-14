@@ -141,6 +141,9 @@ func DeleteUser(ctx context.Context, d *schema.ResourceData, meta interface{}) d
 
 func ImportUser(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
 	database, username, err := mssql.ParseUserId(d.Id())
+	if err != nil {
+		return nil, err
+	}
 
 	connector := meta.(*mssql.Connector)
 	user, err := connector.GetUser(ctx, database, username)
