@@ -33,6 +33,9 @@ func ResourceLogin() *schema.Resource {
 				Type:      schema.TypeString,
 				Optional:  true,
 				Sensitive: true,
+				StateFunc: func(src interface{}) string {
+					return "" // Do not store password in state, actually
+				},
 			},
 			"options": {
 				Type:     schema.TypeMap,
@@ -74,8 +77,10 @@ func ReadLogin(ctx context.Context, data *schema.ResourceData, meta interface{})
 	login := new(model.Login).Parse(data)
 
 	var defaultDatabase, defaultLanguage model.NullString
+	stmtSQL := "SELECT name, default_database_name, default_language_name FROM [master].[sys].[sql_logins] WHERE [name] = @name"
+	log.Printf("Executing statement: %s", stmtSQL)
 	err := connector.QueryRowContext(ctx,
-		"SELECT name, default_database_name, default_language_name FROM [master].[sys].[sql_logins] WHERE [name] = @name",
+		stmtSQL,
 		func(r *sql.Row) error {
 			return r.Scan(&login.Name, &defaultDatabase, &defaultLanguage)
 		},
@@ -85,16 +90,28 @@ func ReadLogin(ctx context.Context, data *schema.ResourceData, meta interface{})
 		return diag.FromErr(err)
 	}
 
-	_, ok := data.GetOk("default_database")
-	if ok && defaultDatabase != "" {
-		// If DEFAULT_DATABASE option defined explicitly, then import it, otherwise, skip
-		login.Options["default_database"] = defaultDatabase
-	}
+	log.Printf("READ: name='%s', password='%s'", login.Name, login.Password)
 
-	_, ok = data.GetOk("default_language")
-	if ok && defaultLanguage != "" {
-		// If DEFAULT_LANGUAGE option defined explicitly, then import it, otherwise, skip
-		login.Options["default_language"] = defaultLanguage
+	log.Println("Importing Options")
+
+	options := data.Get("options").(map[string]interface{})
+	if options != nil {
+		log.Printf("Options len= %d", len(options))
+		_, ok := options["default_database"]
+		if ok && defaultDatabase != "" {
+			// If DEFAULT_DATABASE option defined explicitly, then import it, otherwise, skip
+			login.Options["default_database"] = defaultDatabase
+			log.Printf("Options: default_database = %s", defaultDatabase)
+		}
+
+		_, ok = options["options.default_language"]
+		if ok && defaultLanguage != "" {
+			// If DEFAULT_LANGUAGE option defined explicitly, then import it, otherwise, skip
+			login.Options["default_language"] = defaultLanguage
+			log.Printf("Options: default_language = %s", defaultLanguage)
+		}
+	} else {
+		log.Println("No options")
 	}
 
 	return login.ToSchema(data)
