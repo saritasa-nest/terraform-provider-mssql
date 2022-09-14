@@ -30,13 +30,10 @@ resource "mssql_database" "app" {
 The following arguments are supported:
 
 * `name` - (Required) The name of the database. This must be unique within
-  a given MS SQL server and may or may not be case-sensitive depending on
-  the operating system on which the MS SQL server is running.
+  a given MS SQL server.
 
 * `default_collation` - (Optional) The default collation to use when a table
-  is created without specifying an explicit collation. Defaults to
-  ``Latin1_General_100_CI_AI``. Each character set has its own set of collations, so
-  changing the character set requires also changing the collation.
+  is created without specifying an explicit collation.
 
 * `options` - (Optional) a key-value map of options supported by MSSQL to pass to 
   database engine on DB creation. Ex. 
@@ -65,7 +62,6 @@ The following attributes are exported:
 
 * `name` - The name of the database.
 * `id` - The id of the database.
-* `default_character_set` - The default_character_set of the database.
 * `default_collation` - The default_collation of the database.
 
 ## Import

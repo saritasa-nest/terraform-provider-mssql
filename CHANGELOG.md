@@ -1,3 +1,6 @@
+## 0.0.4 (2022-09-14)
+* Actualize documentation
+
 ## 0.0.3 (2022-09-14)
 * Fix user delete
 * Add documentation, update release workflows
